@@ -6,6 +6,26 @@ Comprehensive test suite for the SquareX browser extension project.
 
 This module contains all tests for the project, including unit tests, integration tests, and end-to-end tests across all browser extensions.
 
+## Planned Role
+
+### Core Responsibilities
+- **Comprehensive Testing**: Unit, integration, and end-to-end test coverage
+- **Cross-browser Testing**: Automated testing across Chrome, Firefox, and Safari
+- **Performance Testing**: Benchmarking and performance regression testing
+- **Quality Assurance**: Ensure reliability and accuracy of analysis algorithms
+
+### Technical Architecture
+- **Playwright Framework**: Cross-browser E2E testing automation
+- **Jest Framework**: Unit and integration testing
+- **Rust Testing**: WASM module testing with Rust test framework
+- **Test Fixtures**: Comprehensive test data and sample files
+
+### Testing Strategy
+- **Unit Tests**: Individual component testing (WASM, extensions, utilities)
+- **Integration Tests**: Component interaction testing
+- **E2E Tests**: Complete workflow testing across browsers
+- **Performance Tests**: Large file processing and memory usage testing
+
 ## Test Structure
 
 ```

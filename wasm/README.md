@@ -6,6 +6,26 @@ Rust-based WebAssembly module for file analysis and security scanning.
 
 This module implements the core analysis algorithms in Rust and compiles to WebAssembly for high-performance execution in the browser.
 
+## Planned Role
+
+### Core Responsibilities
+- **Analysis Engine**: Implement all security analysis algorithms (word frequency, banned phrases, PII detection, entropy calculation)
+- **Performance Optimization**: High-performance processing for large files (up to several GB)
+- **Memory Management**: Efficient streaming and chunked processing
+- **Plugin Architecture**: Extensible plugin system for future analysis rules
+
+### Technical Architecture
+- **Rust Implementation**: Core algorithms written in Rust for performance
+- **WASM Compilation**: Compiled to WebAssembly for browser execution
+- **Streaming Processing**: Chunked file processing (1MB chunks)
+- **Parallel Processing**: Web Workers integration for CPU-intensive tasks
+
+### Integration Points
+- **Extension Integration**: Consumed by all browser extensions via shared interface
+- **Background Processing**: Handled by background service workers
+- **Real-time Analysis**: Provides incremental results during processing
+- **Decision Engine**: Risk scoring and allow/block decisions
+
 ## Features
 
 - **Word Frequency Analysis**: Identify top 10 most frequent words

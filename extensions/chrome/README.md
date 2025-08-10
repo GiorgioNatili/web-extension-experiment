@@ -6,6 +6,26 @@ Chrome browser extension implementation using Manifest V3.
 
 This extension implements the SquareX file scanning functionality for Chrome browsers using the latest Manifest V3 specification.
 
+## Planned Role
+
+### Core Responsibilities
+- **File Upload Detection**: Monitor and intercept file upload events on web pages
+- **UI Injection**: Dynamically inject analysis results into pages without modifying existing HTML
+- **Background Processing**: Service worker for file processing and WASM coordination
+- **User Interaction**: Handle user feedback and extension controls
+
+### Technical Architecture
+- **Manifest V3**: Latest Chrome extension manifest with service workers
+- **Content Scripts**: Isolated content scripts for page interaction
+- **Service Workers**: Background processing and state management
+- **WASM Integration**: Load and manage WASM module lifecycle
+
+### Browser-Specific Features
+- **Service Worker Persistence**: Persistent background processing
+- **Declarative Content Scripts**: Automatic injection based on URL patterns
+- **Chrome APIs**: Native Chrome extension APIs for file access
+- **Security Model**: Manifest V3 security constraints and CSP
+
 ## Features
 
 - **Manifest V3**: Latest Chrome extension manifest version

@@ -6,6 +6,26 @@ Firefox browser extension implementation using WebExtensions API.
 
 This extension implements the SquareX file scanning functionality for Firefox browsers using the WebExtensions API.
 
+## Planned Role
+
+### Core Responsibilities
+- **File Upload Detection**: Monitor and intercept file upload events on web pages
+- **UI Injection**: Dynamically inject analysis results into pages without modifying existing HTML
+- **Background Processing**: Background scripts for file processing and WASM coordination
+- **User Interaction**: Handle user feedback and extension controls
+
+### Technical Architecture
+- **WebExtensions API**: Firefox extension standard with background scripts
+- **Content Scripts**: Isolated content scripts for page interaction
+- **Background Scripts**: Persistent background processing
+- **WASM Integration**: Load and manage WASM module lifecycle
+
+### Browser-Specific Features
+- **Background Script Persistence**: Persistent background processing model
+- **WebExtensions Compatibility**: Firefox-specific API patterns
+- **WASM Loading**: Firefox-specific WASM loading and security model
+- **Permission Model**: Firefox-specific permission handling
+
 ## Features
 
 - **WebExtensions API**: Firefox extension standard

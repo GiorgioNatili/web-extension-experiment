@@ -6,6 +6,26 @@ Safari browser extension implementation using App Extensions.
 
 This extension implements the SquareX file scanning functionality for Safari browsers using Apple's App Extensions framework.
 
+## Planned Role
+
+### Core Responsibilities
+- **File Upload Detection**: Monitor and intercept file upload events on web pages
+- **UI Injection**: Dynamically inject analysis results into pages without modifying existing HTML
+- **Background Processing**: Background scripts for file processing and WASM coordination
+- **User Interaction**: Handle user feedback and extension controls
+
+### Technical Architecture
+- **App Extensions**: Safari extension standard with macOS app wrapper
+- **Content Scripts**: Isolated content scripts for page interaction
+- **Background Scripts**: Background processing (different model than Chrome/Firefox)
+- **WASM Integration**: Load and manage WASM module lifecycle
+
+### Browser-Specific Features
+- **macOS Integration**: Native macOS app extension requirements
+- **App Store Distribution**: App Store submission and review process
+- **Safari Security Model**: Safari-specific security constraints
+- **Background Processing**: Safari-specific background script limitations
+
 ## Features
 
 - **App Extensions**: Safari extension standard

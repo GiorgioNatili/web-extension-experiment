@@ -6,6 +6,26 @@ Common utilities, types, and interfaces shared across all browser extensions.
 
 This module contains shared code that is used by all browser extensions, providing a consistent interface and common functionality.
 
+## Planned Role
+
+### Core Responsibilities
+- **Cross-browser Abstraction**: Provide consistent APIs across Chrome, Firefox, and Safari
+- **Type Definitions**: Common TypeScript interfaces and types for all components
+- **WASM Interface**: Standardized interface for WASM module interaction
+- **Utility Functions**: Common helper functions and validation logic
+
+### Technical Architecture
+- **TypeScript Implementation**: Type-safe interfaces and utilities
+- **Browser Abstraction Layer**: Platform-specific implementations
+- **Shared Constants**: Configuration and message constants
+- **Validation Logic**: Common validation and error handling
+
+### Integration Points
+- **Extension Integration**: Used by all browser extensions
+- **WASM Integration**: Provides interface for WASM module communication
+- **UI Integration**: Shared UI utilities and components
+- **Testing Integration**: Common test utilities and mocks
+
 ## Features
 
 - **Type Definitions**: Common TypeScript interfaces and types

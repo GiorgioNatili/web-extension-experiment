@@ -8,6 +8,8 @@ This project implements a browser extension that scans `.txt` files selected for
 
 For detailed technical analysis, requirements, and architecture decisions, see [docs/analysis.md](docs/analysis.md).
 
+For comprehensive project planning, architecture decisions, and development roadmap, see [docs/plan.md](docs/plan.md).
+
 ## Prerequisites
 
 ### Required Software
