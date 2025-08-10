@@ -27,62 +27,117 @@ tests/
 └── utils/            # Test utilities and helpers
 ```
 
-## Test Types
-
-### Unit Tests
-- **WASM Module**: Rust unit tests for analysis algorithms
-- **Shared Utilities**: TypeScript unit tests for common functions
-- **Extension Logic**: Individual component testing
-
-### Integration Tests
-- **WASM Integration**: Testing WASM module with JavaScript
-- **Browser APIs**: Testing browser extension APIs
-- **File Processing**: End-to-end file analysis pipeline
-
-### End-to-End Tests
-- **Cross-browser Testing**: Using Playwright for browser automation
-- **Extension Loading**: Testing extension installation and loading
-- **File Upload Scenarios**: Testing complete file upload workflows
-- **UI Interaction**: Testing user interface and interactions
-
-## Development
+## Build & Test
 
 ### Prerequisites
 
-- Node.js 18+
-- Playwright
-- Rust (for WASM tests)
-- Chrome, Firefox, Safari browsers
+- **Node.js** 18+ and **pnpm** 8+
+  ```bash
+  # Install Node.js from https://nodejs.org/
+  npm install -g pnpm
+  ```
+
+- **Playwright** browsers
+  ```bash
+  # Install Playwright browsers
+  npx playwright install
+  ```
+
+- **Rust** 1.70+ (for WASM tests)
+  ```bash
+  # Install Rust from https://rustup.rs/
+  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+  source ~/.cargo/env
+  ```
+
+- **Chrome, Firefox, Safari** browsers for E2E testing
 
 ### Test Commands
 
 ```bash
 # Install dependencies
-npm install
+pnpm install
 
 # Run all tests
-npm test
+pnpm test
 
-# Run unit tests only
-npm run test:unit
+# Run specific test suites
+pnpm test:unit         # Unit tests only
+pnpm test:integration  # Integration tests
+pnpm test:e2e          # End-to-end tests
+pnpm test:coverage     # Tests with coverage
 
-# Run integration tests
-npm run test:integration
+# Run tests for specific components
+pnpm test:wasm         # WASM module tests
+pnpm test:shared       # Shared utilities tests
+pnpm test:extensions   # Extension-specific tests
 
-# Run E2E tests
-npm run test:e2e
-
-# Run tests for specific browser
-npm run test:e2e:chrome
-npm run test:e2e:firefox
-npm run test:e2e:safari
-
-# Run tests with coverage
-npm run test:coverage
+# Run E2E tests for specific browsers
+pnpm test:e2e:chrome
+pnpm test:e2e:firefox
+pnpm test:e2e:safari
 
 # Run tests in watch mode
-npm run test:watch
+pnpm test:watch
 ```
+
+### Development Workflow
+
+```bash
+# Start test development server
+pnpm dev:test
+
+# Run tests in watch mode
+pnpm test:watch
+
+# Run specific test files
+pnpm test:file -- tests/unit/wasm/entropy.test.ts
+
+# Run tests with specific browser
+pnpm test:e2e:chrome:headed  # Run with browser UI
+pnpm test:e2e:chrome:debug   # Run with debug mode
+
+# Generate test reports
+pnpm test:report
+```
+
+### Manual Testing
+
+1. **Unit Tests**:
+   ```bash
+   # Test WASM algorithms
+   pnpm test:wasm:unit
+   
+   # Test shared utilities
+   pnpm test:shared:unit
+   
+   # Test extension logic
+   pnpm test:extensions:unit
+   ```
+
+2. **Integration Tests**:
+   ```bash
+   # Test WASM integration
+   pnpm test:wasm:integration
+   
+   # Test browser APIs
+   pnpm test:browser:integration
+   
+   # Test file processing pipeline
+   pnpm test:pipeline:integration
+   ```
+
+3. **End-to-End Tests**:
+   ```bash
+   # Test complete workflows
+   pnpm test:e2e:workflow
+   
+   # Test file upload scenarios
+   pnpm test:e2e:upload
+   
+   # Test UI interactions
+   pnpm test:e2e:ui
+   ```
 
 ### Test Fixtures
 
@@ -92,6 +147,34 @@ Sample files for testing:
 - **Obfuscated files**: High-entropy content for detection testing
 - **Files with banned phrases**: Content containing "confidential" and "do not share"
 - **Files with PII**: Content with 9-12 digit numbers
+
+### Performance Testing
+
+```bash
+# Run performance benchmarks
+pnpm test:performance
+
+# Test large file processing
+pnpm test:performance:large-files
+
+# Test memory usage
+pnpm test:performance:memory
+
+# Test WASM performance
+pnpm test:performance:wasm
+```
+
+### Browser Compatibility Testing
+
+```bash
+# Test all browsers
+pnpm test:compatibility
+
+# Test specific browser features
+pnpm test:compatibility:wasm
+pnpm test:compatibility:apis
+pnpm test:compatibility:extensions
+```
 
 ## Test Coverage
 
@@ -123,6 +206,19 @@ Tests are configured to run:
 - Cross-browser testing in CI environment
 - Performance regression testing
 
+### CI Local Testing
+
+```bash
+# Run CI pipeline locally
+pnpm ci:test
+
+# Run specific CI stages
+pnpm ci:test:unit      # Unit test stage
+pnpm ci:test:integration # Integration test stage
+pnpm ci:test:e2e       # E2E test stage
+pnpm ci:test:coverage  # Coverage stage
+```
+
 ## Test Data
 
 Test files are stored in `tests/fixtures/sample-files/` and include:
@@ -139,3 +235,66 @@ Test results include:
 - E2E test screenshots and videos
 - Performance benchmarks
 - Browser compatibility matrix
+
+### Generate Reports
+
+```bash
+# Generate coverage report
+pnpm test:coverage:report
+
+# Generate performance report
+pnpm test:performance:report
+
+# Generate compatibility matrix
+pnpm test:compatibility:report
+
+# Generate test summary
+pnpm test:summary
+```
+
+## Troubleshooting
+
+### Common Test Issues
+
+#### Test Failures
+```bash
+# Clear test cache
+pnpm test:clean
+
+# Reinstall test dependencies
+pnpm install --force
+
+# Check test environment
+pnpm test:validate:environment
+```
+
+#### Browser Test Issues
+```bash
+# Reinstall Playwright browsers
+npx playwright install
+
+# Check browser compatibility
+pnpm test:validate:browsers
+
+# Run tests with debug output
+pnpm test:e2e:debug
+```
+
+#### WASM Test Issues
+```bash
+# Rebuild WASM module
+pnpm build:wasm:test
+
+# Check Rust toolchain
+rustup show
+rustup update
+
+# Run WASM tests with verbose output
+pnpm test:wasm:verbose
+```
+
+### Getting Help
+- Check test logs for detailed error information
+- Review browser console output
+- Verify test environment setup
+- Check [docs/analysis.md](../docs/analysis.md) for technical details

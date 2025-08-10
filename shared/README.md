@@ -38,19 +38,44 @@ src/
     └── messages.ts # Message constants
 ```
 
-## Development
+## Build & Test
 
 ### Prerequisites
 
-- TypeScript 5.0+
-- Node.js 18+
+- **TypeScript** 5.0+
+- **Node.js** 18+ and **pnpm** 8+
+  ```bash
+  # Install Node.js from https://nodejs.org/
+  npm install -g pnpm
+  ```
 
 ### Build Commands
 
 ```bash
 # Install dependencies
-npm install
+pnpm install
 
+# Development build with watch mode
+pnpm dev:shared
+
+# Production build
+pnpm build:shared
+
+# Clean build artifacts
+pnpm clean:shared
+
+# Type checking
+pnpm type-check:shared
+
+# Build with specific environment
+pnpm build:shared:dev    # Development build
+pnpm build:shared:prod   # Production build
+pnpm build:shared:debug  # Debug build
+```
+
+### Manual Build Commands
+
+```bash
 # Type checking
 npm run type-check
 
@@ -59,17 +84,77 @@ npm run build
 
 # Watch mode
 npm run watch
+
+# Bundle analysis
+npm run analyze
 ```
 
 ### Testing
 
 ```bash
-# Unit tests
-npm test
+# Run all tests
+pnpm test:shared
+
+# Run specific test suites
+pnpm test:shared:unit      # Unit tests
+pnpm test:shared:integration # Integration tests
+pnpm test:shared:types     # Type checking tests
+
+# Run tests in watch mode
+pnpm test:shared:watch
+
+# Test browser compatibility
+pnpm test:shared:browser-compat
+```
+
+### Development Workflow
+
+```bash
+# Start development server
+pnpm dev:shared
+
+# Run tests in watch mode
+pnpm test:shared:watch
+
+# Check code quality
+pnpm lint:shared
+pnpm format:shared
 
 # Type checking
-npm run type-check
+pnpm type-check:shared
+
+# Bundle analysis
+pnpm analyze:shared
 ```
+
+### Manual Testing
+
+1. **Type Checking**:
+   ```bash
+   # Verify TypeScript compilation
+   pnpm type-check:shared
+   
+   # Check for type errors
+   pnpm test:shared:types
+   ```
+
+2. **Unit Tests**:
+   ```bash
+   # Run utility function tests
+   pnpm test:shared:unit
+   
+   # Test browser abstractions
+   pnpm test:shared:browser
+   ```
+
+3. **Integration Tests**:
+   ```bash
+   # Test WASM interface
+   pnpm test:shared:wasm
+   
+   # Test cross-browser compatibility
+   pnpm test:shared:compatibility
+   ```
 
 ## Key Interfaces
 
@@ -112,6 +197,52 @@ Used by all browser extensions:
 - [Chrome Extension](extensions/chrome/README.md)
 - [Firefox Extension](extensions/firefox/README.md)
 - [Safari Extension](extensions/safari/README.md)
+
+## Troubleshooting
+
+### Common Issues
+
+#### Type Errors
+```bash
+# Check TypeScript configuration
+pnpm validate:shared:typescript
+
+# Update type definitions
+pnpm update:shared:types
+
+# Check for breaking changes
+pnpm test:shared:breaking-changes
+```
+
+#### Build Failures
+```bash
+# Clear build cache
+pnpm clean:shared
+
+# Check dependencies
+pnpm validate:shared:dependencies
+
+# Reinstall dependencies
+pnpm install --force
+```
+
+#### Browser Compatibility Issues
+```bash
+# Test browser abstractions
+pnpm test:shared:browser-compat
+
+# Check API differences
+pnpm validate:shared:api-compat
+
+# Update browser implementations
+pnpm update:shared:browser-apis
+```
+
+### Getting Help
+- Check TypeScript compiler output
+- Review browser compatibility matrix
+- Verify interface implementations
+- Check [docs/analysis.md](../docs/analysis.md) for technical details
 
 ## Versioning
 
