@@ -1,0 +1,7 @@
+packages:
+  - 'wasm'
+  - 'shared'
+  - 'extensions/*'
+  - 'tests'
+  - 'scripts'
+  - 'docs'

@@ -28,23 +28,36 @@ This module contains all tests for the project, including unit tests, integratio
 
 ## Test Structure
 
+### Purpose
+The tests package provides comprehensive testing infrastructure for the entire project, including unit tests, integration tests, and end-to-end tests across all browser extensions. It ensures code quality, reliability, and cross-browser compatibility.
+
+### File Layout
 ```
 tests/
-├── unit/              # Unit tests
-│   ├── wasm/         # WASM module tests
-│   ├── shared/       # Shared utilities tests
-│   └── extensions/   # Extension-specific tests
-├── integration/       # Integration tests
-│   ├── wasm-integration/ # WASM integration tests
-│   └── browser-integration/ # Browser API tests
-├── e2e/              # End-to-end tests
-│   ├── chrome/       # Chrome extension E2E tests
-│   ├── firefox/      # Firefox extension E2E tests
-│   └── safari/       # Safari extension E2E tests
-├── fixtures/         # Test fixtures and sample files
-│   ├── sample-files/ # Sample .txt files for testing
-│   └── test-page/    # Test page HTML and assets
-└── utils/            # Test utilities and helpers
+├── package.json            # Node.js package configuration
+├── jest.config.js          # Jest configuration
+├── playwright.config.ts    # Playwright configuration
+├── tsconfig.json           # TypeScript configuration
+├── src/
+│   ├── unit/               # Unit tests
+│   │   ├── wasm/          # WASM module tests
+│   │   ├── shared/        # Shared utilities tests
+│   │   └── extensions/    # Extension-specific tests
+│   ├── integration/        # Integration tests
+│   │   ├── wasm-integration/ # WASM integration tests
+│   │   └── browser-integration/ # Browser API tests
+│   ├── e2e/               # End-to-end tests
+│   │   ├── chrome/        # Chrome extension E2E tests
+│   │   ├── firefox/       # Firefox extension E2E tests
+│   │   └── safari/        # Safari extension E2E tests
+│   ├── fixtures/          # Test fixtures and sample files
+│   │   ├── sample-files/  # Sample .txt files for testing
+│   │   └── test-page/     # Test page HTML and assets
+│   ├── utils/             # Test utilities and helpers
+│   └── setup.ts           # Test setup and configuration
+├── coverage/              # Test coverage reports
+├── test-results/          # Playwright test results
+└── playwright-report/     # Playwright HTML reports
 ```
 
 ## Build & Test

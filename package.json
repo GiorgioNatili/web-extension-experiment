@@ -1,0 +1,64 @@
+{
+  "name": "squarex-browser-extension",
+  "version": "0.1.0",
+  "description": "Cross-browser extension for real-time file upload security scanning using WebAssembly",
+  "private": true,
+  "workspaces": [
+    "wasm",
+    "shared",
+    "extensions/*",
+    "tests"
+  ],
+  "scripts": {
+    "install:all": "pnpm install",
+    "build:all": "pnpm run build:wasm && pnpm run build:extensions",
+    "build:wasm": "pnpm --filter wasm build",
+    "build:extensions": "pnpm --filter \"extensions/*\" build",
+    "build:shared": "pnpm --filter shared build",
+    "test:all": "pnpm --filter \"*\" test",
+    "test:wasm": "pnpm --filter wasm test",
+    "test:extensions": "pnpm --filter \"extensions/*\" test",
+    "test:shared": "pnpm --filter shared test",
+    "test:e2e": "pnpm --filter tests test:e2e",
+    "lint:all": "pnpm --filter \"*\" lint",
+    "format:all": "pnpm --filter \"*\" format",
+    "clean:all": "pnpm --filter \"*\" clean",
+    "dev:wasm": "pnpm --filter wasm dev",
+    "dev:ext:chrome": "pnpm --filter extensions-chrome dev",
+    "dev:ext:firefox": "pnpm --filter extensions-firefox dev",
+    "dev:ext:safari": "pnpm --filter extensions-safari dev",
+    "dev:shared": "pnpm --filter shared dev",
+    "ci:install": "pnpm install --frozen-lockfile",
+    "ci:test": "pnpm run test:all",
+    "ci:build": "pnpm run build:all",
+    "ci:lint": "pnpm run lint:all"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "prettier": "^3.0.0",
+    "eslint": "^8.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "playwright": "^1.40.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "packageManager": "pnpm@8.0.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/squarex/browser-extension.git"
+  },
+  "keywords": [
+    "browser-extension",
+    "security",
+    "file-scanning",
+    "webassembly",
+    "rust",
+    "typescript"
+  ],
+  "author": "Giorgio Natili SquareX Team",
+  "license": "MIT"
+}

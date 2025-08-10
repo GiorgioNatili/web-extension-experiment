@@ -36,26 +36,36 @@ This module contains shared code that is used by all browser extensions, providi
 
 ## Architecture
 
+### Purpose
+The shared utilities package provides common code, types, and interfaces used across all browser extensions. It ensures consistency and reduces code duplication while providing cross-browser abstraction layers.
+
+### File Layout
 ```
-src/
-├── types/           # TypeScript type definitions
-│   ├── analysis.ts  # Analysis result types
-│   ├── browser.ts   # Browser-specific types
-│   └── common.ts    # Common interfaces
-├── wasm/           # WASM integration utilities
-│   ├── interface.ts # WASM module interface
-│   └── loader.ts    # WASM loading utilities
-├── browser/        # Browser abstraction layer
-│   ├── chrome.ts   # Chrome-specific implementations
-│   ├── firefox.ts  # Firefox-specific implementations
-│   └── safari.ts   # Safari-specific implementations
-├── utils/          # Utility functions
-│   ├── file.ts     # File handling utilities
-│   ├── ui.ts       # UI utilities
-│   └── validation.ts # Validation functions
-└── constants/      # Shared constants
-    ├── config.ts   # Configuration constants
-    └── messages.ts # Message constants
+shared/
+├── package.json            # Node.js package configuration
+├── tsconfig.json           # TypeScript configuration
+├── src/
+│   ├── index.ts            # Main package exports
+│   ├── types/              # TypeScript type definitions
+│   │   ├── analysis.ts     # Analysis result types
+│   │   ├── browser.ts      # Browser-specific types
+│   │   └── common.ts       # Common interfaces
+│   ├── wasm/               # WASM integration utilities
+│   │   ├── interface.ts    # WASM module interface
+│   │   └── loader.ts       # WASM loading utilities
+│   ├── browser/            # Browser abstraction layer
+│   │   ├── chrome.ts       # Chrome-specific implementations
+│   │   ├── firefox.ts      # Firefox-specific implementations
+│   │   └── safari.ts       # Safari-specific implementations
+│   ├── utils/              # Utility functions
+│   │   ├── file.ts         # File handling utilities
+│   │   ├── ui.ts           # UI utilities
+│   │   └── validation.ts   # Validation functions
+│   └── constants/          # Shared constants
+│       ├── config.ts       # Configuration constants
+│       └── messages.ts     # Message constants
+├── dist/                   # Compiled JavaScript output
+└── tests/                  # Unit tests
 ```
 
 ## Build & Test
@@ -73,24 +83,19 @@ src/
 
 ```bash
 # Install dependencies
-pnpm install
+npm install
 
 # Development build with watch mode
-pnpm dev:shared
+npm run dev
 
 # Production build
-pnpm build:shared
+npm run build
 
 # Clean build artifacts
-pnpm clean:shared
+npm run clean
 
 # Type checking
-pnpm type-check:shared
-
-# Build with specific environment
-pnpm build:shared:dev    # Development build
-pnpm build:shared:prod   # Production build
-pnpm build:shared:debug  # Debug build
+npm run type-check
 ```
 
 ### Manual Build Commands
@@ -113,38 +118,35 @@ npm run analyze
 
 ```bash
 # Run all tests
-pnpm test:shared
+npm test
 
 # Run specific test suites
-pnpm test:shared:unit      # Unit tests
-pnpm test:shared:integration # Integration tests
-pnpm test:shared:types     # Type checking tests
+npm run test:unit      # Unit tests
+npm run test:integration # Integration tests
+npm run test:types     # Type checking tests
 
 # Run tests in watch mode
-pnpm test:shared:watch
+npm run test:watch
 
 # Test browser compatibility
-pnpm test:shared:browser-compat
+npm run test:browser-compat
 ```
 
 ### Development Workflow
 
 ```bash
 # Start development server
-pnpm dev:shared
+npm run dev
 
 # Run tests in watch mode
-pnpm test:shared:watch
+npm run test:watch
 
 # Check code quality
-pnpm lint:shared
-pnpm format:shared
+npm run lint
+npm run format
 
 # Type checking
-pnpm type-check:shared
-
-# Bundle analysis
-pnpm analyze:shared
+npm run type-check
 ```
 
 ### Manual Testing
@@ -152,28 +154,28 @@ pnpm analyze:shared
 1. **Type Checking**:
    ```bash
    # Verify TypeScript compilation
-   pnpm type-check:shared
+   npm run type-check
    
    # Check for type errors
-   pnpm test:shared:types
+   npm run test:types
    ```
 
 2. **Unit Tests**:
    ```bash
    # Run utility function tests
-   pnpm test:shared:unit
+   npm run test:unit
    
    # Test browser abstractions
-   pnpm test:shared:browser
+   npm run test:browser
    ```
 
 3. **Integration Tests**:
    ```bash
    # Test WASM interface
-   pnpm test:shared:wasm
+   npm run test:wasm
    
    # Test cross-browser compatibility
-   pnpm test:shared:compatibility
+   npm run test:compatibility
    ```
 
 ## Key Interfaces
@@ -225,37 +227,37 @@ Used by all browser extensions:
 #### Type Errors
 ```bash
 # Check TypeScript configuration
-pnpm validate:shared:typescript
+npm run type-check
 
 # Update type definitions
-pnpm update:shared:types
+npm run build
 
 # Check for breaking changes
-pnpm test:shared:breaking-changes
+npm test
 ```
 
 #### Build Failures
 ```bash
 # Clear build cache
-pnpm clean:shared
+npm run clean
 
 # Check dependencies
-pnpm validate:shared:dependencies
+npm install
 
 # Reinstall dependencies
-pnpm install --force
+npm install --force
 ```
 
 #### Browser Compatibility Issues
 ```bash
 # Test browser abstractions
-pnpm test:shared:browser-compat
+npm run test:browser-compat
 
 # Check API differences
-pnpm validate:shared:api-compat
+npm run build
 
 # Update browser implementations
-pnpm update:shared:browser-apis
+npm run build
 ```
 
 ### Getting Help

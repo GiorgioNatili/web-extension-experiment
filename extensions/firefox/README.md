@@ -36,23 +36,33 @@ This extension implements the SquareX file scanning functionality for Firefox br
 
 ## Architecture
 
+### Purpose
+The Firefox extension implements the SquareX file scanning functionality using the WebExtensions API, providing compatibility with Firefox's extension ecosystem while maintaining feature parity with other browser versions.
+
+### File Layout
 ```
-src/
-├── manifest.json       # Extension manifest (WebExtensions)
-├── background/         # Background scripts
-│   └── background.js
-├── content/           # Content scripts
-│   ├── content.js     # Main content script
-│   └── ui.js         # UI injection logic
-├── popup/            # Extension popup
-│   ├── popup.html
-│   ├── popup.js
-│   └── popup.css
-├── options/          # Options page
-│   ├── options.html
-│   ├── options.js
-│   └── options.css
-└── assets/           # Icons and other assets
+extensions/firefox/
+├── package.json            # Node.js package configuration
+├── webpack.config.js       # Webpack build configuration
+├── tsconfig.json           # TypeScript configuration
+├── src/
+│   ├── manifest.json       # Extension manifest (WebExtensions)
+│   ├── background/         # Background scripts
+│   │   └── background.ts
+│   ├── content/            # Content scripts
+│   │   ├── content.ts      # Main content script
+│   │   └── ui.ts          # UI injection logic
+│   ├── popup/             # Extension popup
+│   │   ├── popup.html
+│   │   ├── popup.ts
+│   │   └── popup.css
+│   ├── options/           # Options page
+│   │   ├── options.html
+│   │   ├── options.ts
+│   │   └── options.css
+│   └── assets/            # Icons and other assets
+├── dist/                  # Built extension files
+└── tests/                 # Extension-specific tests
 ```
 
 ## Build & Test

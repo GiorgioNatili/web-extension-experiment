@@ -46,36 +46,42 @@ For comprehensive project planning, architecture decisions, and development road
 ### 1. Install Dependencies
 ```bash
 # Install all project dependencies
-pnpm install
+npm install
 ```
 
 ### 2. Build WASM Module
 ```bash
 # Build WebAssembly module for web targets
-pnpm build:wasm
-
-# Build for testing (Node.js target)
-pnpm build:wasm:test
+cd wasm && source "$HOME/.cargo/env" && wasm-pack build --target web
+cd ..
 ```
 
-### 3. Build Extensions
+### 3. Build Shared Package
 ```bash
-# Build all extensions
-pnpm build:extensions
-
-# Build specific extensions
-pnpm build:ext:chrome
-pnpm build:ext:firefox
-pnpm build:ext:safari
+# Build shared utilities
+cd shared && npm run build
+cd ..
 ```
 
-### 4. Start Local Test Server
+### 4. Build Extensions
+```bash
+# Build Chrome extension
+cd extensions/chrome && npm run build
+cd ../..
+
+# Build Firefox extension (when ready)
+cd extensions/firefox && npm run build
+cd ../..
+
+# Build Safari extension (when ready)
+cd extensions/safari && npm run build
+cd ../..
+```
+
+### 5. Start Local Test Server
 ```bash
 # Start local server for test page
-python3 -m http.server 8080
-
-# Or using Node.js
-npx serve -p 8080
+cd test-page && python3 -m http.server 8080
 ```
 
 ### 5. Load Extensions
@@ -84,13 +90,12 @@ npx serve -p 8080
 1. Open Chrome and navigate to `chrome://extensions/`
 2. Enable "Developer mode"
 3. Click "Load unpacked"
-4. Select the `dist/chrome` directory
+4. Select the `extensions/chrome/dist/` directory
 
 #### Firefox Extension
-1. Open Firefox and navigate to `about:debugging`
-2. Click "This Firefox"
-3. Click "Load Temporary Add-on"
-4. Select the `manifest.json` file from `dist/firefox`
+1. Open Firefox and navigate to `about:debugging#/runtime/this-firefox`
+2. Click "Load Temporary Add-on"
+3. Select the `manifest.json` file from `extensions/firefox/dist/`
 
 #### Safari Extension (macOS only)
 1. Build the extension using Xcode
@@ -99,7 +104,7 @@ npx serve -p 8080
 4. Enable the extension in Safari
 
 ### 6. Test the Extension
-1. Navigate to `http://localhost:8080/test_page.html`
+1. Navigate to `http://localhost:8080`
 2. Select a `.txt` file for upload
 3. The extension will automatically scan and display results
 
@@ -108,64 +113,61 @@ npx serve -p 8080
 ### Build Commands
 ```bash
 # Development builds with watch mode
-pnpm dev:wasm          # Watch WASM changes
-pnpm dev:ext:chrome    # Watch Chrome extension
-pnpm dev:ext:firefox   # Watch Firefox extension
-pnpm dev:ext:safari    # Watch Safari extension
+cd wasm && wasm-pack build --target web --dev --watch  # Watch WASM changes
+cd extensions/chrome && npm run build:dev              # Watch Chrome extension
+cd extensions/firefox && npm run build:dev             # Watch Firefox extension
+cd extensions/safari && npm run build:dev              # Watch Safari extension
 
 # Production builds
-pnpm build:wasm        # Build WASM for production
-pnpm build:extensions  # Build all extensions
-pnpm build:all         # Build everything
+cd wasm && wasm-pack build --target web --release      # Build WASM for production
+cd extensions/chrome && npm run build                  # Build Chrome extension
+cd extensions/firefox && npm run build                 # Build Firefox extension
+cd extensions/safari && npm run build                  # Build Safari extension
 ```
 
 ### Testing Commands
 ```bash
-# Run all tests
-pnpm test
+# Run WASM tests
+cd wasm && cargo test --lib
 
-# Run specific test suites
-pnpm test:unit         # Unit tests
-pnpm test:wasm         # WASM module tests
-pnpm test:e2e          # End-to-end tests
-pnpm test:extensions   # Extension-specific tests
+# Run shared package tests
+cd shared && npm test
 
-# Test with specific browsers
-pnpm test:e2e:chrome
-pnpm test:e2e:firefox
-pnpm test:e2e:safari
+# Run extension tests
+cd extensions/chrome && npm test
+cd extensions/firefox && npm test
+cd extensions/safari && npm test
 
-# Run tests in watch mode
-pnpm test:watch
+# Run E2E tests
+cd tests && npm run test:e2e
 ```
 
 ### Linting and Formatting
 ```bash
-# Lint all code
-pnpm lint
+# Lint and format shared package
+cd shared && npm run lint && npm run format
 
-# Format code
-pnpm format
+# Lint and format extensions
+cd extensions/chrome && npm run lint && npm run format
+cd extensions/firefox && npm run lint && npm run format
+cd extensions/safari && npm run lint && npm run format
 
 # Type checking
-pnpm type-check
+cd shared && npm run type-check
+cd extensions/chrome && npm run type-check
 ```
 
 ## CI/CD Local Testing
 
 ### Run CI Pipeline Locally
 ```bash
-# Install CI dependencies
-pnpm ci:install
+# Install dependencies
+npm install
 
 # Run full CI pipeline
-pnpm ci:test
-
-# Run specific CI stages
-pnpm ci:lint          # Linting stage
-pnpm ci:build         # Build stage
-pnpm ci:test:unit     # Unit test stage
-pnpm ci:test:e2e      # E2E test stage
+cd wasm && cargo test --lib && cd ..
+cd shared && npm run build && npm test && cd ..
+cd extensions/chrome && npm run build && npm test && cd ../..
 ```
 
 ### Docker Development
@@ -177,23 +179,39 @@ docker build -f Dockerfile.dev -t squarex-dev .
 docker run -it --rm -v $(pwd):/app squarex-dev
 
 # Run tests in container
-docker run --rm -v $(pwd):/app squarex-dev pnpm test
+docker run --rm -v $(pwd):/app squarex-dev npm test
 ```
 
 ## Project Structure
 
 ```
-├── wasm/           # Rust WASM module for analysis
-├── extensions/     # Browser extension implementations
-│   ├── chrome/     # Chrome extension (Manifest V3)
-│   ├── firefox/    # Firefox extension (WebExtensions)
-│   └── safari/     # Safari extension (App Extensions)
-├── shared/         # Shared utilities and types
-├── tests/          # Test suite and test files
-├── diagrams/       # Architecture and flow diagrams
-├── scripts/        # Build and deployment scripts
-└── docs/           # Documentation
-    └── analysis.md # Technical analysis and requirements
+├── package.json              # Root workspace configuration
+├── pnpm-workspace.yaml       # Workspace package definitions
+├── wasm/                     # Rust WASM module for analysis
+│   ├── Cargo.toml           # Rust package configuration
+│   ├── src/lib.rs           # Main WASM bindings
+│   ├── src/analysis/        # Analysis algorithms
+│   └── pkg/                 # Generated WASM files
+├── shared/                   # Shared TypeScript utilities
+│   ├── package.json         # TypeScript package
+│   ├── src/                 # Source code
+│   └── dist/                # Compiled output
+├── extensions/              # Browser extension implementations
+│   ├── chrome/              # Chrome extension (Manifest V3)
+│   │   ├── package.json     # Extension config
+│   │   ├── webpack.config.js # Build config
+│   │   ├── src/             # Extension source
+│   │   └── dist/            # Built extension
+│   ├── firefox/             # Firefox extension (WebExtensions)
+│   └── safari/              # Safari extension (App Extensions)
+├── tests/                   # Test suite and test files
+├── test-page/               # Test page for demonstration
+│   └── index.html           # Simple test interface
+├── diagrams/                # Architecture and flow diagrams
+├── scripts/                 # Build and deployment scripts
+└── docs/                    # Documentation
+    ├── analysis.md          # Technical analysis and requirements
+    └── plan.md              # Project planning and architecture
 ```
 
 ## Features
@@ -226,9 +244,11 @@ See individual component READMEs for specific development instructions:
 #### WASM Build Failures
 ```bash
 # Clear Rust cache
-cargo clean
+cd wasm && cargo clean
 # Reinstall wasm-pack
 cargo install wasm-pack --force
+# Build WASM module
+source "$HOME/.cargo/env" && wasm-pack build --target web
 ```
 
 #### Extension Loading Issues
@@ -239,9 +259,11 @@ cargo install wasm-pack --force
 #### Test Failures
 ```bash
 # Clear test cache
-pnpm test:clean
+cd tests && npm run clean
 # Reinstall Playwright browsers
 npx playwright install
+# Run WASM tests
+cd ../wasm && cargo test --lib
 ```
 
 ### Getting Help

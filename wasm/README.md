@@ -36,16 +36,30 @@ This module implements the core analysis algorithms in Rust and compiles to WebA
 
 ## Architecture
 
+### Purpose
+The WASM module serves as the core analysis engine for the browser extension, providing high-performance security scanning capabilities through WebAssembly. It implements all analysis algorithms in Rust for optimal performance and memory efficiency.
+
+### File Layout
 ```
-src/
-├── lib.rs          # Main library entry point
-├── analysis/       # Analysis algorithms
-│   ├── frequency.rs # Word frequency analysis
-│   ├── phrases.rs   # Banned phrase detection
-│   ├── pii.rs       # PII pattern detection
-│   └── entropy.rs   # Entropy calculation
-├── utils/          # Utility functions
-└── types.rs        # Shared types and structures
+wasm/
+├── Cargo.toml              # Rust package configuration
+├── package.json            # Node.js package configuration
+├── src/
+│   ├── lib.rs              # Main library entry point and WASM bindings
+│   ├── analysis/           # Analysis algorithms
+│   │   ├── mod.rs          # Analysis module exports
+│   │   ├── frequency.rs    # Word frequency analysis
+│   │   ├── phrases.rs      # Banned phrase detection
+│   │   ├── pii.rs          # PII pattern detection
+│   │   └── entropy.rs      # Entropy calculation
+│   ├── utils/              # Utility functions
+│   │   ├── mod.rs          # Utils module exports
+│   │   ├── text.rs         # Text processing utilities
+│   │   └── stream.rs       # Streaming utilities
+│   └── types.rs            # Shared types and structures
+├── tests/                  # Rust unit tests
+├── benches/                # Performance benchmarks
+└── pkg/                    # Generated WASM package (build output)
 ```
 
 ## Build & Test
@@ -75,19 +89,19 @@ src/
 
 ```bash
 # Install dependencies
-pnpm install
+npm install
 
 # Build for web (production)
-pnpm build:wasm
+source "$HOME/.cargo/env" && wasm-pack build --target web
 
 # Build for testing (Node.js target)
-pnpm build:wasm:test
+source "$HOME/.cargo/env" && wasm-pack build --target nodejs
 
 # Development build with watch mode
-pnpm dev:wasm
+source "$HOME/.cargo/env" && wasm-pack build --target web --dev --watch
 
 # Clean build artifacts
-pnpm clean:wasm
+cargo clean && rm -rf pkg/
 ```
 
 ### Manual Build Commands
@@ -110,54 +124,50 @@ wasm-pack build --target web --dev
 
 ```bash
 # Run all tests
-pnpm test:wasm
+cargo test --lib
 
 # Run Rust unit tests
 cargo test
 
 # Run WASM tests in browsers
-wasm-pack test --headless --firefox
-wasm-pack test --headless --chrome
+source "$HOME/.cargo/env" && wasm-pack test --headless --firefox
+source "$HOME/.cargo/env" && wasm-pack test --headless --chrome
 
 # Run specific test suites
-pnpm test:wasm:unit      # Unit tests only
-pnpm test:wasm:integration # Integration tests
-pnpm test:wasm:benchmark # Performance tests
-
-# Test with specific browsers
-pnpm test:wasm:firefox
-pnpm test:wasm:chrome
-pnpm test:wasm:safari
+cargo test --lib tests::test_entropy_calculation
+cargo test --lib tests::test_banned_phrases
+cargo test --lib tests::test_pii_detection
+cargo test --lib tests::test_word_frequency
 ```
 
 ### Development Workflow
 
 ```bash
 # Start development server
-pnpm dev:wasm
+source "$HOME/.cargo/env" && wasm-pack build --target web --dev --watch
 
 # Run tests in watch mode
-pnpm test:wasm:watch
+cargo watch -x test
 
 # Check code quality
-pnpm lint:wasm
-pnpm format:wasm
+cargo clippy
+cargo fmt
 
 # Type checking
-pnpm type-check:wasm
+cargo check
 ```
 
 ### Performance Testing
 
 ```bash
-# Run benchmarks
-pnpm benchmark:wasm
+# Run benchmarks (when implemented)
+cargo bench
 
 # Profile WASM performance
-pnpm profile:wasm
+cargo build --release && wasm-pack build --target web --release
 
 # Memory usage analysis
-pnpm analyze:wasm
+cargo build --release && wasm-pack build --target web --release
 ```
 
 ## API Reference
@@ -178,13 +188,16 @@ This module is consumed by browser extensions through the shared interface defin
 
 ```javascript
 // Import WASM module
-import init, { analyzeFile } from './pkg/wasm_module.js';
+import init, { WasmModule } from './pkg/wasm.js';
 
 // Initialize WASM
 await init();
 
+// Create WASM module instance
+const wasmModule = new WasmModule();
+
 // Analyze file content
-const result = analyzeFile(fileContent);
+const result = wasmModule.analyze_file(fileContent);
 console.log(result);
 ```
 
@@ -203,6 +216,9 @@ cargo install wasm-pack --force
 # Check Rust toolchain
 rustup show
 rustup update
+
+# Build with verbose output
+source "$HOME/.cargo/env" && wasm-pack build --target web --verbose
 ```
 
 #### Memory Issues

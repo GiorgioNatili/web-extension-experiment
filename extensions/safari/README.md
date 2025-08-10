@@ -36,21 +36,33 @@ This extension implements the SquareX file scanning functionality for Safari bro
 
 ## Architecture
 
+### Purpose
+The Safari extension implements the SquareX file scanning functionality using Apple's App Extensions framework, providing native macOS integration and App Store distribution capabilities while maintaining feature parity with other browser versions.
+
+### File Layout
 ```
-src/
-├── manifest.json       # Extension manifest (Safari App Extension)
-├── content/           # Content scripts
-│   ├── content.js     # Main content script
-│   └── ui.js         # UI injection logic
-├── popup/            # Extension popup
-│   ├── popup.html
-│   ├── popup.js
-│   └── popup.css
-├── options/          # Options page
-│   ├── options.html
-│   ├── options.js
-│   └── options.css
-└── assets/           # Icons and other assets
+extensions/safari/
+├── package.json            # Node.js package configuration
+├── webpack.config.js       # Webpack build configuration
+├── tsconfig.json           # TypeScript configuration
+├── src/
+│   ├── manifest.json       # Extension manifest (Safari App Extension)
+│   ├── background/         # Background scripts
+│   │   └── background.ts
+│   ├── content/            # Content scripts
+│   │   ├── content.ts      # Main content script
+│   │   └── ui.ts          # UI injection logic
+│   ├── popup/             # Extension popup
+│   │   ├── popup.html
+│   │   ├── popup.ts
+│   │   └── popup.css
+│   ├── options/           # Options page
+│   │   ├── options.html
+│   │   ├── options.ts
+│   │   └── options.css
+│   └── assets/            # Icons and other assets
+├── dist/                  # Built extension files
+└── tests/                 # Extension-specific tests
 ```
 
 ## Build & Test

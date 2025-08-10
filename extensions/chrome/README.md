@@ -36,23 +36,33 @@ This extension implements the SquareX file scanning functionality for Chrome bro
 
 ## Architecture
 
+### Purpose
+The Chrome extension implements the SquareX file scanning functionality using Manifest V3, providing a modern, secure, and performant browser extension that integrates seamlessly with Chrome's extension ecosystem.
+
+### File Layout
 ```
-src/
-├── manifest.json       # Extension manifest (Manifest V3)
-├── background/         # Service worker background script
-│   └── service-worker.js
-├── content/           # Content scripts
-│   ├── content.js     # Main content script
-│   └── ui.js         # UI injection logic
-├── popup/            # Extension popup
-│   ├── popup.html
-│   ├── popup.js
-│   └── popup.css
-├── options/          # Options page
-│   ├── options.html
-│   ├── options.js
-│   └── options.css
-└── assets/           # Icons and other assets
+extensions/chrome/
+├── package.json            # Node.js package configuration
+├── webpack.config.js       # Webpack build configuration
+├── tsconfig.json           # TypeScript configuration
+├── src/
+│   ├── manifest.json       # Extension manifest (Manifest V3)
+│   ├── background/         # Service worker background script
+│   │   └── service-worker.ts
+│   ├── content/            # Content scripts
+│   │   ├── content.ts      # Main content script
+│   │   └── ui.ts          # UI injection logic
+│   ├── popup/             # Extension popup
+│   │   ├── popup.html
+│   │   ├── popup.ts
+│   │   └── popup.css
+│   ├── options/           # Options page
+│   │   ├── options.html
+│   │   ├── options.ts
+│   │   └── options.css
+│   └── assets/            # Icons and other assets
+├── dist/                  # Built extension files
+└── tests/                 # Extension-specific tests
 ```
 
 ## Build & Test
@@ -76,21 +86,20 @@ src/
 
 ```bash
 # Install dependencies
-pnpm install
+npm install
 
 # Development build with watch mode
-pnpm dev:ext:chrome
+npm run build:watch
 
 # Production build
-pnpm build:ext:chrome
+npm run build
 
 # Clean build artifacts
-pnpm clean:ext:chrome
+npm run clean
 
 # Build with specific environment
-pnpm build:ext:chrome:dev    # Development build
-pnpm build:ext:chrome:prod   # Production build
-pnpm build:ext:chrome:debug  # Debug build
+npm run build:dev    # Development build
+npm run build        # Production build
 ```
 
 ### Manual Build Commands
@@ -114,48 +123,45 @@ npm run analyze
 1. Open Chrome and navigate to `chrome://extensions/`
 2. Enable "Developer mode" (toggle in top right)
 3. Click "Load unpacked"
-4. Select the `dist/chrome` directory
+4. Select the `extensions/chrome/dist/` directory
 5. The extension should appear in your extensions list
 
 ### Testing
 
 ```bash
 # Run all tests
-pnpm test:ext:chrome
+npm test
 
 # Run specific test suites
-pnpm test:ext:chrome:unit      # Unit tests
-pnpm test:ext:chrome:integration # Integration tests
-pnpm test:ext:chrome:e2e       # End-to-end tests
+npm run test:unit      # Unit tests
+npm run test:integration # Integration tests
+npm run test:e2e       # End-to-end tests
 
 # Test with Playwright
-pnpm test:e2e:chrome
+npm run test:e2e
 
 # Run tests in watch mode
-pnpm test:ext:chrome:watch
+npm run test:watch
 
 # Test extension loading
-pnpm test:ext:chrome:load
+npm run test:load
 ```
 
 ### Development Workflow
 
 ```bash
 # Start development server
-pnpm dev:ext:chrome
+npm run build:watch
 
 # Run tests in watch mode
-pnpm test:ext:chrome:watch
+npm run test:watch
 
 # Check code quality
-pnpm lint:ext:chrome
-pnpm format:ext:chrome
+npm run lint
+npm run format
 
 # Type checking
-pnpm type-check:ext:chrome
-
-# Bundle analysis
-pnpm analyze:ext:chrome
+npm run type-check
 ```
 
 ### Manual Testing
@@ -165,7 +171,7 @@ pnpm analyze:ext:chrome
    - Check extension appears in Chrome toolbar
 
 2. **Test File Upload**:
-   - Navigate to `http://localhost:8080/test_page.html`
+   - Navigate to `http://localhost:8080`
    - Select a `.txt` file for upload
    - Verify analysis results appear
 
@@ -219,14 +225,14 @@ Key Manifest V3 features used:
 #### Extension Won't Load
 ```bash
 # Check manifest.json syntax
-pnpm validate:ext:chrome:manifest
+npm run build
 
 # Clear Chrome extension cache
 # Navigate to chrome://extensions/
 # Click "Remove" and reload
 
 # Check for build errors
-pnpm build:ext:chrome:debug
+npm run build
 ```
 
 #### Service Worker Issues

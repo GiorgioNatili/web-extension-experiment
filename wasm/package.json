@@ -1,0 +1,39 @@
+{
+  "name": "wasm",
+  "version": "0.1.0",
+  "description": "Rust WebAssembly module for file analysis and security scanning",
+  "main": "pkg/wasm_bg.js",
+  "types": "pkg/wasm.d.ts",
+  "files": [
+    "pkg/*"
+  ],
+  "scripts": {
+    "build": "wasm-pack build --target web",
+    "build:test": "wasm-pack build --target nodejs",
+    "build:dev": "wasm-pack build --target web --dev",
+    "build:release": "wasm-pack build --target web --release",
+    "test": "wasm-pack test --headless --firefox",
+    "test:chrome": "wasm-pack test --headless --chrome",
+    "test:firefox": "wasm-pack test --headless --firefox",
+    "test:safari": "wasm-pack test --headless --safari",
+    "test:node": "wasm-pack test --node",
+    "clean": "cargo clean && rm -rf pkg/",
+    "dev": "wasm-pack build --target web --dev --watch",
+    "benchmark": "cargo bench",
+    "lint": "cargo clippy",
+    "format": "cargo fmt",
+    "check": "cargo check"
+  },
+  "devDependencies": {
+    "wasm-pack": "^0.12.0"
+  },
+  "keywords": [
+    "webassembly",
+    "rust",
+    "security",
+    "analysis",
+    "file-scanning"
+  ],
+  "author": "SquareX Team",
+  "license": "MIT"
+}

@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "SquareX File Scanner",
+  "version": "0.1.0",
+  "description": "Real-time file upload security scanning using WebAssembly",
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "http://localhost:8080/*"
+  ],
+  "background": {
+    "service_worker": "service-worker.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://localhost:8080/*"],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "SquareX File Scanner"
+  },
+  "options_page": "options.html",
+  "web_accessible_resources": [
+    {
+      "resources": ["wasm/*"],
+      "matches": ["http://localhost:8080/*"]
+    }
+  ]
+}

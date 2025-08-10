@@ -232,8 +232,8 @@ pub trait FileFormatHandler {
 #### Frontend
 - **TypeScript**: Type-safe extension development
 - **Webpack**: Module bundling and optimization
-- **React/Vue**: UI component framework (optional)
-- **Tailwind CSS**: Utility-first styling
+- **HTML/CSS**: Simple UI components
+- **Vanilla JavaScript**: No framework dependencies
 
 #### Backend (WASM)
 - **Rust**: High-performance analysis engine

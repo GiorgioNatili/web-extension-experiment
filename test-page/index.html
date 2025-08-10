@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SquareX File Scanner Test Page</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .upload-area { border: 2px dashed #ccc; padding: 40px; text-align: center; margin: 20px 0; }
+        .results { margin-top: 20px; padding: 20px; border: 1px solid #ddd; border-radius: 4px; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <h1>SquareX File Scanner Test Page</h1>
+    <p>This page demonstrates the SquareX browser extension for file upload security scanning.</p>
+    
+    <div class="upload-area">
+        <h3>Upload a .txt file to test the extension</h3>
+        <input type="file" id="fileInput" accept=".txt" />
+        <p><small>Only .txt files are supported for testing</small></p>
+    </div>
+    
+    <div id="results" class="results" style="display: none;"></div>
+    
+    <script>
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const content = e.target.result;
+                    document.getElementById('results').innerHTML = 
+                        `<h3>File Content Preview:</h3><pre>${content.substring(0, 500)}...</pre>`;
+                    document.getElementById('results').style.display = 'block';
+                };
+                reader.readAsText(file);
+            }
+        });
+    </script>
+</body>
+</html>

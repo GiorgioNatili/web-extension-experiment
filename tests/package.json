@@ -1,0 +1,46 @@
+{
+  "name": "tests",
+  "version": "0.1.0",
+  "description": "Comprehensive test suite for the SquareX browser extension project",
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:debug": "playwright test --debug",
+    "test:unit": "jest --testPathPattern=unit",
+    "test:integration": "jest --testPathPattern=integration",
+    "test:wasm": "pnpm --filter wasm test",
+    "test:extensions": "pnpm --filter \"extensions/*\" test",
+    "test:coverage": "jest --coverage",
+    "test:performance": "jest --testPathPattern=performance",
+    "lint": "eslint src/**/*.{ts,js}",
+    "format": "prettier --write src/**/*.{ts,js}",
+    "clean": "rm -rf coverage/ test-results/ playwright-report/",
+    "install:browsers": "playwright install"
+  },
+  "dependencies": {
+    "shared": "file:../shared",
+    "wasm": "file:../wasm"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0",
+    "@types/jest": "^29.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "jest": "^29.0.0",
+    "prettier": "^3.0.0",
+    "ts-jest": "^29.0.0",
+    "typescript": "^5.0.0"
+  },
+  "keywords": [
+    "testing",
+    "playwright",
+    "jest",
+    "e2e",
+    "unit-tests"
+  ],
+  "author": "SquareX Team",
+  "license": "MIT"
+}
