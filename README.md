@@ -291,19 +291,27 @@ cd ../wasm && cargo test --lib
 ## Changelog
 
 ### [Unreleased]
-- Initial project setup
-- WASM module architecture
+- Safari extension implementation
+- Performance optimizations
+- Advanced analysis algorithms
+- User interface enhancements
+
+### [0.2.0] - 2025-08-11
+- **Streaming Analysis Engine**: Complete WASM module with streaming analysis for large files
+- **Comprehensive Test Suite**: 29 tests across all components (100% pass rate)
+- **Firefox Extension**: Complete implementation with WebExtensions API
+- **Interactive Test Page**: Browser-based testing environment for WASM module
+- **API Documentation**: Complete reference with usage examples and TypeScript types
+- **Configurable Analysis**: Runtime-configurable parameters (stopwords, thresholds, banned phrases)
+- **Test Infrastructure**: Jest configurations with proper mocking for all packages
+
+### [0.1.0] - 2025-08-10
+- Initial project setup and monorepo structure
+- WASM module architecture with core analysis algorithms
+- Chrome extension implementation (Manifest V3)
 - Cross-browser extension framework
 - Build system configuration
-
-### [0.1.0] - 2024-01-XX
-- Initial release
-- Basic file analysis functionality
-- Chrome extension implementation
-- Firefox extension implementation
-- Safari extension implementation
-- WASM module with core algorithms
-- Test suite and CI pipeline
+- Architecture diagrams and documentation
 
 ## License
 

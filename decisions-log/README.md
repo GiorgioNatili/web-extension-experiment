@@ -47,6 +47,17 @@ Each decisions log entry includes:
 - Cross-browser abstraction layer
 - Comprehensive testing strategy
 
+### [2025-08-11-analysis-engine-implementation.md](2025-08-11-analysis-engine-implementation.md)
+**Scope**: Streaming analysis engine and comprehensive test suite implementation  
+**Key Decisions**:
+- Streaming analysis architecture for large file processing
+- Configurable analysis parameters (stopwords, thresholds, banned phrases)
+- Comprehensive test suite across all components (29 tests, 100% pass rate)
+- Test infrastructure with proper mocking and environment setup
+- Firefox extension implementation with WebExtensions API
+- Interactive test page for WASM module demonstration
+- Complete API documentation with usage examples
+
 ## Usage Guidelines
 
 ### When to Create a New Entry

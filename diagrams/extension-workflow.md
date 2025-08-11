@@ -21,16 +21,18 @@ sequenceDiagram
     else Valid file
         Content->>Content: Read file content
         Content->>Background: Send analysis request
-        Background->>WASM: Initialize WASM module
+        Background->>WASM: Initialize streaming analyzer
         WASM->>WASM: Load analysis algorithms
         
-        par Analysis Processing
-            WASM->>WASM: Word frequency analysis
-            WASM->>WASM: Banned phrase detection
-            WASM->>WASM: PII pattern detection
-            WASM->>WASM: Entropy calculation
+        loop For each chunk (1MB)
+            Content->>WASM: Process chunk
+            WASM->>WASM: Accumulate word frequencies
+            WASM->>WASM: Detect banned phrases
+            WASM->>WASM: Find PII patterns
+            WASM->>WASM: Calculate entropy
         end
         
+        WASM->>WASM: Finalize analysis
         WASM->>Background: Return analysis results
         Background->>Content: Send results back
         
@@ -59,13 +61,16 @@ sequenceDiagram
 ### **3. Analysis Request**
 - Read file content as text
 - Send analysis request to background script
-- Background script initializes WASM module
+- Background script initializes streaming analyzer
 
-### **4. Parallel Analysis**
-- **Word Frequency**: Identify top words
-- **Banned Phrases**: Detect prohibited content
-- **PII Detection**: Find personal information
-- **Entropy Calculation**: Measure text randomness
+### **4. Streaming Analysis**
+- **Chunk Processing**: Process file in 1MB chunks for memory efficiency
+- **State Accumulation**: Maintain analysis state across chunks
+- **Word Frequency**: Accumulate word counts across all chunks
+- **Banned Phrases**: Detect prohibited content in each chunk
+- **PII Detection**: Find personal information patterns
+- **Entropy Calculation**: Measure text randomness/obfuscation
+- **Final Aggregation**: Combine results from all chunks
 
 ### **5. Results Processing**
 - WASM returns structured analysis results

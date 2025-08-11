@@ -16,6 +16,12 @@ graph TB
             Entropy[Entropy Calculation<br/>Shannon entropy]
         end
 
+        subgraph "Streaming Analysis"
+            Streaming[StreamingAnalyzer<br/>State management]
+            Config[StreamingConfig<br/>Runtime parameters]
+            ChunkProcess[Chunk Processing<br/>Memory efficient]
+        end
+
         subgraph "Utilities"
             TextUtils[Text Processing<br/>Normalization]
             StreamUtils[Streaming<br/>Chunk processing]
@@ -44,6 +50,9 @@ graph TB
     WasmModule --> Phrases
     WasmModule --> PII
     WasmModule --> Entropy
+    WasmModule --> Streaming
+    WasmModule --> Config
+    WasmModule --> ChunkProcess
     WasmModule --> TextUtils
     WasmModule --> StreamUtils
     WasmModule --> Types
@@ -53,6 +62,8 @@ graph TB
     Phrases --> TextUtils
     PII --> TextUtils
     Entropy --> TextUtils
+    Streaming --> TextUtils
+    Streaming --> Config
 
     %% WASM bindings
     WasmModule --> Bindings
@@ -70,7 +81,7 @@ graph TB
     classDef external fill:#e0f2f1
 
     class WasmModule,JSModule,Methods interface
-    class Frequency,Phrases,PII,Entropy algorithm
+    class Frequency,Phrases,PII,Entropy,Streaming,Config,ChunkProcess algorithm
     class TextUtils,StreamUtils utility
     class Types data
     class Bindings binding
@@ -88,6 +99,11 @@ graph TB
 - **Banned Phrases**: Detects prohibited content patterns
 - **PII Detection**: Finds personal identifiable information
 - **Entropy Calculation**: Measures text randomness/obfuscation
+
+### **Streaming Analysis**
+- **StreamingAnalyzer**: Stateful analyzer for large file processing
+- **StreamingConfig**: Runtime-configurable parameters (stopwords, thresholds, banned phrases)
+- **Chunk Processing**: Memory-efficient processing of large files in 1MB chunks
 
 ### **Utilities**
 - **Text Processing**: Normalization and cleaning functions
