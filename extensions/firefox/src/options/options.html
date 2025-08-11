@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SquareX Security Scanner - Options</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .section h3 {
+            margin-top: 0;
+        }
+        label {
+            display: block;
+            margin: 10px 0 5px 0;
+            font-weight: bold;
+        }
+        input[type="text"], input[type="number"], textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        textarea {
+            height: 100px;
+            resize: vertical;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .save-status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            display: none;
+        }
+        .save-status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .save-status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔒 SquareX Security Scanner Options</h1>
+    
+    <div class="section">
+        <h3>General Settings</h3>
+        <label for="scannerEnabled">Enable Scanner:</label>
+        <input type="checkbox" id="scannerEnabled" checked>
+        
+        <label for="autoScan">Auto-scan files:</label>
+        <input type="checkbox" id="autoScan" checked>
+    </div>
+    
+    <div class="section">
+        <h3>Analysis Settings</h3>
+        <label for="entropyThreshold">Entropy Threshold:</label>
+        <input type="number" id="entropyThreshold" value="4.8" step="0.1" min="0" max="10">
+        
+        <label for="riskThreshold">Risk Threshold:</label>
+        <input type="number" id="riskThreshold" value="0.6" step="0.1" min="0" max="1">
+        
+        <label for="maxWords">Maximum Words to Analyze:</label>
+        <input type="number" id="maxWords" value="10" min="1" max="100">
+    </div>
+    
+    <div class="section">
+        <h3>Banned Phrases</h3>
+        <label for="bannedPhrases">Banned Phrases (one per line):</label>
+        <textarea id="bannedPhrases">confidential
+do not share
+secret
+internal
+classified</textarea>
+    </div>
+    
+    <div class="section">
+        <h3>Stopwords</h3>
+        <label for="stopwords">Stopwords to Exclude (one per line):</label>
+        <textarea id="stopwords">the
+a
+an
+and
+or
+but
+in
+on
+at
+to
+for
+of
+with
+by
+is
+are
+was
+were
+be
+been
+have
+has
+had
+do
+does
+did
+will
+would
+could
+should
+may
+might
+can
+this
+that
+these
+those
+i
+you
+he
+she
+it
+we
+they
+me
+him
+her
+us
+them
+my
+your
+his
+her
+its
+our
+their
+mine
+yours
+hers
+ours
+theirs</textarea>
+    </div>
+    
+    <button id="saveBtn">Save Settings</button>
+    <button id="resetBtn">Reset to Defaults</button>
+    
+    <div id="saveStatus" class="save-status"></div>
+    
+    <script src="options.js"></script>
+</body>
+</html>

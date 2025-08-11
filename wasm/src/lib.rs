@@ -4,9 +4,11 @@ use serde::{Deserialize, Serialize};
 mod analysis;
 mod utils;
 mod types;
+mod streaming;
 
 use analysis::{frequency, phrases, pii, entropy};
 use types::{AnalysisResult, AnalysisRequest};
+use streaming::{StreamingAnalyzer, StreamingConfig, ProcessingStats};
 
 #[wasm_bindgen]
 pub struct WasmModule {
@@ -57,6 +59,57 @@ impl WasmModule {
         serde_wasm_bindgen::to_value(&words)
             .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
     }
+
+    /// Initialize streaming analyzer
+    pub fn init_streaming(&self) -> Result<JsValue, JsValue> {
+        let analyzer = StreamingAnalyzer::init();
+        serde_wasm_bindgen::to_value(&analyzer)
+            .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+    }
+
+    /// Initialize streaming analyzer with custom configuration
+    pub fn init_streaming_with_config(&self, config: JsValue) -> Result<JsValue, JsValue> {
+        let config: StreamingConfig = serde_wasm_bindgen::from_value(config)
+            .map_err(|e| JsValue::from_str(&format!("Config deserialization error: {}", e)))?;
+        
+        let analyzer = StreamingAnalyzer::new(config);
+        serde_wasm_bindgen::to_value(&analyzer)
+            .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+    }
+
+    /// Process chunk with streaming analyzer
+    pub fn process_chunk(&self, analyzer: JsValue, chunk: &str) -> Result<JsValue, JsValue> {
+        let mut analyzer: StreamingAnalyzer = serde_wasm_bindgen::from_value(analyzer)
+            .map_err(|e| JsValue::from_str(&format!("Analyzer deserialization error: {}", e)))?;
+        
+        analyzer.process_chunk(chunk)
+            .map_err(|e| JsValue::from_str(&format!("Processing error: {}", e)))?;
+        
+        serde_wasm_bindgen::to_value(&analyzer)
+            .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+    }
+
+    /// Finalize streaming analysis
+    pub fn finalize_streaming(&self, analyzer: JsValue) -> Result<JsValue, JsValue> {
+        let analyzer: StreamingAnalyzer = serde_wasm_bindgen::from_value(analyzer)
+            .map_err(|e| JsValue::from_str(&format!("Analyzer deserialization error: {}", e)))?;
+        
+        let result = analyzer.finalize()
+            .map_err(|e| JsValue::from_str(&format!("Finalization error: {}", e)))?;
+        
+        serde_wasm_bindgen::to_value(&result)
+            .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+    }
+
+    /// Get processing statistics
+    pub fn get_streaming_stats(&self, analyzer: JsValue) -> Result<JsValue, JsValue> {
+        let analyzer: StreamingAnalyzer = serde_wasm_bindgen::from_value(analyzer)
+            .map_err(|e| JsValue::from_str(&format!("Analyzer deserialization error: {}", e)))?;
+        
+        let stats = analyzer.get_stats();
+        serde_wasm_bindgen::to_value(&stats)
+            .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+    }
 }
 
 impl WasmModule {
@@ -86,9 +139,9 @@ impl WasmModule {
         })
     }
 
-    fn calculate_risk_score(
+        fn calculate_risk_score(
         &self,
-        top_words: &[(String, usize)],
+        _top_words: &[(String, usize)],
         banned_phrases: &[types::BannedPhraseMatch],
         pii_patterns: &[types::PIIPattern],
         entropy: f64,
@@ -96,12 +149,12 @@ impl WasmModule {
         let banned_weight = 0.4;
         let pii_weight = 0.3;
         let entropy_weight = 0.2;
-        let size_weight = 0.1;
-        
+        let _size_weight = 0.1;
+
         let banned_score = if banned_phrases.is_empty() { 0.0 } else { 1.0 };
         let pii_score = if pii_patterns.is_empty() { 0.0 } else { 1.0 };
         let entropy_score = if entropy > 4.8 { 1.0 } else { entropy / 4.8 };
-        
+
         banned_score * banned_weight +
         pii_score * pii_weight +
         entropy_score * entropy_weight
@@ -165,7 +218,10 @@ mod tests {
     fn test_word_frequency() {
         let text = "hello world hello test world";
         let words = frequency::analyze_word_frequency(text, 3);
-        assert_eq!(words[0].0, "hello");
-        assert_eq!(words[0].1, 2);
+        // Check that we have the expected words and counts
+        let hello_count = words.iter().find(|(word, _)| word == "hello").map(|(_, count)| count);
+        let world_count = words.iter().find(|(word, _)| word == "world").map(|(_, count)| count);
+        assert_eq!(hello_count, Some(&2));
+        assert_eq!(world_count, Some(&2));
     }
 }

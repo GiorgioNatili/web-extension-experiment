@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Streaming Analysis Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .result {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .loading {
+            color: #6c757d;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Streaming Analysis Test</h1>
+        <p>This page demonstrates the new streaming analysis functionality in the WASM module.</p>
+        
+        <div class="test-section">
+            <h3>📝 Test 1: Basic Streaming Analysis</h3>
+            <button onclick="runBasicTest()">Run Basic Test</button>
+            <div id="basic-result" class="result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>🔧 Test 2: Custom Configuration</h3>
+            <button onclick="runCustomTest()">Run Custom Test</button>
+            <div id="custom-result" class="result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>🔍 Test 3: PII Detection</h3>
+            <button onclick="runPIITest()">Run PII Test</button>
+            <div id="pii-result" class="result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>📊 All Tests</h3>
+            <button onclick="runAllTests()">Run All Tests</button>
+            <div id="all-result" class="result"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import init, { WasmModule } from './pkg/wasm.js';
+        
+        let wasmModule = null;
+        
+        async function initializeWasm() {
+            if (wasmModule) return wasmModule;
+            
+            try {
+                await init();
+                wasmModule = new WasmModule();
+                console.log('✅ WASM module initialized successfully');
+                return wasmModule;
+            } catch (error) {
+                console.error('❌ Failed to initialize WASM:', error);
+                throw error;
+            }
+        }
+        
+        function displayResult(elementId, content, isError = false) {
+            const element = document.getElementById(elementId);
+            element.textContent = content;
+            element.className = `result ${isError ? 'error' : 'success'}`;
+        }
+        
+        async function runBasicTest() {
+            try {
+                displayResult('basic-result', '🔄 Running basic streaming test...', false);
+                
+                const module = await initializeWasm();
+                let analyzer = module.init_streaming();
+                
+                // Process content in chunks
+                analyzer = module.process_chunk(analyzer, "This is the first chunk of content. ");
+                analyzer = module.process_chunk(analyzer, "It contains some normal text. ");
+                analyzer = module.process_chunk(analyzer, "And some confidential information that should be detected.");
+                
+                // Get stats
+                const stats = module.get_streaming_stats(analyzer);
+                
+                // Finalize
+                const result = module.finalize_streaming(analyzer);
+                
+                const output = `✅ Basic Streaming Test Results:
+
+📊 Processing Stats:
+- Total chunks: ${stats.total_chunks}
+- Content length: ${stats.total_content_length}
+- Unique words: ${stats.unique_words}
+- Banned phrases: ${stats.banned_phrase_count}
+- PII patterns: ${stats.pii_pattern_count}
+
+🔍 Analysis Results:
+- Decision: ${result.decision}
+- Risk Score: ${result.risk_score.toFixed(3)}
+- Entropy: ${result.entropy.toFixed(3)}
+- Is Obfuscated: ${result.is_obfuscated}
+- Reason: ${result.reason}
+
+📝 Top Words: ${JSON.stringify(result.top_words, null, 2)}
+🚫 Banned Phrases: ${JSON.stringify(result.banned_phrases, null, 2)}
+🔒 PII Patterns: ${JSON.stringify(result.pii_patterns, null, 2)}`;
+                
+                displayResult('basic-result', output, false);
+            } catch (error) {
+                displayResult('basic-result', `❌ Error: ${error.message}`, true);
+            }
+        }
+        
+        async function runCustomTest() {
+            try {
+                displayResult('custom-result', '🔄 Running custom configuration test...', false);
+                
+                const module = await initializeWasm();
+                
+                const customConfig = {
+                    stopwords: ["custom", "words"],
+                    entropy_threshold: 3.5,
+                    risk_threshold: 0.3,
+                    max_words: 5,
+                    banned_phrases: ["secret", "internal", "confidential"]
+                };
+                
+                let analyzer = module.init_streaming_with_config(customConfig);
+                analyzer = module.process_chunk(analyzer, "This document contains secret information and internal data.");
+                
+                const result = module.finalize_streaming(analyzer);
+                
+                const output = `✅ Custom Configuration Test Results:
+
+🔧 Configuration Used:
+- Stopwords: ${customConfig.stopwords.join(', ')}
+- Entropy threshold: ${customConfig.entropy_threshold}
+- Risk threshold: ${customConfig.risk_threshold}
+- Max words: ${customConfig.max_words}
+- Banned phrases: ${customConfig.banned_phrases.join(', ')}
+
+🔍 Analysis Results:
+- Decision: ${result.decision}
+- Risk Score: ${result.risk_score.toFixed(3)}
+- Entropy: ${result.entropy.toFixed(3)}
+- Is Obfuscated: ${result.is_obfuscated}
+- Reason: ${result.reason}
+
+📝 Top Words: ${JSON.stringify(result.top_words, null, 2)}
+🚫 Banned Phrases: ${JSON.stringify(result.banned_phrases, null, 2)}`;
+                
+                displayResult('custom-result', output, false);
+            } catch (error) {
+                displayResult('custom-result', `❌ Error: ${error.message}`, true);
+            }
+        }
+        
+        async function runPIITest() {
+            try {
+                displayResult('pii-result', '🔄 Running PII detection test...', false);
+                
+                const module = await initializeWasm();
+                let analyzer = module.init_streaming();
+                
+                analyzer = module.process_chunk(analyzer, "Contact me at 1234567890 or email@example.com");
+                
+                const result = module.finalize_streaming(analyzer);
+                
+                const output = `✅ PII Detection Test Results:
+
+🔍 Analysis Results:
+- Decision: ${result.decision}
+- Risk Score: ${result.risk_score.toFixed(3)}
+- Entropy: ${result.entropy.toFixed(3)}
+- Is Obfuscated: ${result.is_obfuscated}
+- Reason: ${result.reason}
+
+🔒 PII Patterns Found: ${JSON.stringify(result.pii_patterns, null, 2)}
+📝 Top Words: ${JSON.stringify(result.top_words, null, 2)}`;
+                
+                displayResult('pii-result', output, false);
+            } catch (error) {
+                displayResult('pii-result', `❌ Error: ${error.message}`, true);
+            }
+        }
+        
+        async function runAllTests() {
+            try {
+                displayResult('all-result', '🔄 Running all tests...', false);
+                
+                await runBasicTest();
+                await runCustomTest();
+                await runPIITest();
+                
+                displayResult('all-result', '🎉 All tests completed successfully! Check individual test results above.', false);
+            } catch (error) {
+                displayResult('all-result', `❌ Error running all tests: ${error.message}`, true);
+            }
+        }
+        
+        // Make functions globally available
+        window.runBasicTest = runBasicTest;
+        window.runCustomTest = runCustomTest;
+        window.runPIITest = runPIITest;
+        window.runAllTests = runAllTests;
+        
+        // Initialize WASM on page load
+        window.addEventListener('load', async () => {
+            try {
+                await initializeWasm();
+                console.log('🚀 Ready to run tests!');
+            } catch (error) {
+                console.error('❌ Failed to initialize:', error);
+            }
+        });
+    </script>
+</body>
+</html>

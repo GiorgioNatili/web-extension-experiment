@@ -174,7 +174,112 @@ cargo build --release && wasm-pack build --target web --release
 
 ## API Reference
 
-[To be documented]
+### Core Functions
+
+#### `analyze_file(content: &str) -> Result<JsValue, JsValue>`
+Analyze file content and return security analysis results.
+
+**Parameters:**
+- `content`: String content to analyze
+
+**Returns:** AnalysisResult with security analysis
+
+#### `calculate_entropy(text: &str) -> f64`
+Calculate Shannon entropy for text content.
+
+**Parameters:**
+- `text`: Text to analyze
+
+**Returns:** Entropy value (0.0 to ~4.5+)
+
+#### `find_banned_phrases(text: &str) -> Result<JsValue, JsValue>`
+Find banned phrases in text.
+
+**Parameters:**
+- `text`: Text to search
+
+**Returns:** Array of BannedPhraseMatch objects
+
+#### `detect_pii_patterns(text: &str) -> Result<JsValue, JsValue>`
+Detect PII patterns in text.
+
+**Parameters:**
+- `text`: Text to analyze
+
+**Returns:** Array of PIIPattern objects
+
+#### `get_top_words(text: &str, count: usize) -> Result<JsValue, JsValue>`
+Get top words by frequency.
+
+**Parameters:**
+- `text`: Text to analyze
+- `count`: Number of top words to return
+
+**Returns:** Array of (word, count) tuples
+
+### Streaming Analysis API
+
+#### `init_streaming() -> Result<JsValue, JsValue>`
+Initialize a streaming analyzer with default configuration.
+
+**Returns:** StreamingAnalyzer instance
+
+#### `init_streaming_with_config(config: JsValue) -> Result<JsValue, JsValue>`
+Initialize a streaming analyzer with custom configuration.
+
+**Parameters:**
+- `config`: StreamingConfig object
+
+**Returns:** StreamingAnalyzer instance
+
+#### `process_chunk(analyzer: JsValue, chunk: &str) -> Result<JsValue, JsValue>`
+Process a chunk of text content.
+
+**Parameters:**
+- `analyzer`: StreamingAnalyzer instance
+- `chunk`: Text chunk to process
+
+**Returns:** Updated StreamingAnalyzer instance
+
+#### `finalize_streaming(analyzer: JsValue) -> Result<JsValue, JsValue>`
+Finalize analysis and return results.
+
+**Parameters:**
+- `analyzer`: StreamingAnalyzer instance
+
+**Returns:** AnalysisResult with final analysis
+
+#### `get_streaming_stats(analyzer: JsValue) -> Result<JsValue, JsValue>`
+Get processing statistics.
+
+**Parameters:**
+- `analyzer`: StreamingAnalyzer instance
+
+**Returns:** ProcessingStats object
+
+### Configuration
+
+#### StreamingConfig
+```typescript
+interface StreamingConfig {
+  stopwords: string[];           // Words to exclude from frequency analysis
+  entropy_threshold: number;     // Threshold for obfuscation detection
+  risk_threshold: number;        // Threshold for blocking decisions
+  max_words: number;            // Maximum words to return
+  banned_phrases: string[];     // Phrases to detect as banned
+}
+```
+
+#### ProcessingStats
+```typescript
+interface ProcessingStats {
+  total_chunks: number;          // Number of chunks processed
+  total_content_length: number;  // Total content length
+  unique_words: number;          // Number of unique words
+  banned_phrase_count: number;   // Number of banned phrases found
+  pii_pattern_count: number;     // Number of PII patterns found
+}
+```
 
 ## Performance Considerations
 
@@ -188,6 +293,7 @@ This module is consumed by browser extensions through the shared interface defin
 
 ### Usage in Extensions
 
+#### Basic Analysis
 ```javascript
 // Import WASM module
 import init, { WasmModule } from './pkg/wasm.js';
@@ -201,6 +307,63 @@ const wasmModule = new WasmModule();
 // Analyze file content
 const result = wasmModule.analyze_file(fileContent);
 console.log(result);
+```
+
+#### Streaming Analysis
+```javascript
+// Initialize streaming analyzer
+let analyzer = wasmModule.init_streaming();
+
+// Process content in chunks
+analyzer = wasmModule.process_chunk(analyzer, "First chunk of content");
+analyzer = wasmModule.process_chunk(analyzer, "Second chunk of content");
+analyzer = wasmModule.process_chunk(analyzer, "Final chunk of content");
+
+// Get processing statistics
+const stats = wasmModule.get_streaming_stats(analyzer);
+console.log(`Processed ${stats.total_chunks} chunks`);
+
+// Finalize analysis
+const result = wasmModule.finalize_streaming(analyzer);
+console.log(result);
+```
+
+#### Custom Configuration
+```javascript
+// Create custom configuration
+const config = {
+  stopwords: ["custom", "words", "to", "exclude"],
+  entropy_threshold: 4.0,
+  risk_threshold: 0.5,
+  max_words: 15,
+  banned_phrases: ["secret", "confidential", "internal"]
+};
+
+// Initialize with custom config
+let analyzer = wasmModule.init_streaming_with_config(config);
+
+// Process content
+analyzer = wasmModule.process_chunk(analyzer, "Content with secret information");
+const result = wasmModule.finalize_streaming(analyzer);
+```
+
+#### Individual Analysis Functions
+```javascript
+// Calculate entropy
+const entropy = wasmModule.calculate_entropy("Some text content");
+console.log(`Entropy: ${entropy}`);
+
+// Find banned phrases
+const bannedPhrases = wasmModule.find_banned_phrases("This is confidential information");
+console.log(bannedPhrases);
+
+// Detect PII
+const piiPatterns = wasmModule.detect_pii_patterns("Phone: 1234567890");
+console.log(piiPatterns);
+
+// Get word frequency
+const topWords = wasmModule.get_top_words("Text content here", 10);
+console.log(topWords);
 ```
 
 ## Troubleshooting
