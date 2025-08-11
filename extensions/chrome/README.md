@@ -39,6 +39,8 @@ This extension implements the SquareX file scanning functionality for Chrome bro
 ### Purpose
 The Chrome extension implements the SquareX file scanning functionality using Manifest V3, providing a modern, secure, and performant browser extension that integrates seamlessly with Chrome's extension ecosystem.
 
+For a visual representation of the extension workflow, see the [Browser Extension Workflow diagram](../../../diagrams/extension-workflow.md).
+
 ### File Layout
 ```
 extensions/chrome/

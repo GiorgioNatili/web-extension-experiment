@@ -137,5 +137,10 @@ Extension_Assignment_SquareX.pdf
 docs/_build/
 docs/.doctrees/
 
+# Generated diagram files
+diagrams/png/
+diagrams/svg/
+diagrams/temp_*.mmd
+
 # Local development
 .local/

@@ -208,11 +208,28 @@ docker run --rm -v $(pwd):/app squarex-dev npm test
 ├── test-page/               # Test page for demonstration
 │   └── index.html           # Simple test interface
 ├── diagrams/                # Architecture and flow diagrams
+│   ├── architecture-overview.md
+│   ├── wasm-module-architecture.md
+│   ├── extension-workflow.md
+│   ├── build-pipeline.md
+│   └── export-diagrams.sh
 ├── scripts/                 # Build and deployment scripts
 └── docs/                    # Documentation
     ├── analysis.md          # Technical analysis and requirements
-    └── plan.md              # Project planning and architecture
+    ├── plan.md              # Project planning and architecture
+    └── implementation-status.md # Current implementation status
 ```
+
+## Architecture Diagrams
+
+For visual understanding of the project architecture, see the [diagrams folder](diagrams/):
+
+- **[Architecture Overview](diagrams/architecture-overview.md)** - High-level project structure and component relationships
+- **[WASM Module Architecture](diagrams/wasm-module-architecture.md)** - Internal structure of the Rust analysis engine
+- **[Browser Extension Workflow](diagrams/extension-workflow.md)** - File upload processing sequence
+- **[Build Pipeline](diagrams/build-pipeline.md)** - Build process and dependency flow
+
+Export diagrams to PNG/SVG: `./diagrams/export-diagrams.sh`
 
 ## Features
 

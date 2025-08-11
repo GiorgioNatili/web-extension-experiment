@@ -1,10 +1,28 @@
 # Diagrams
 
-Architecture diagrams, flow charts, and visual documentation for the SquareX browser extension project.
+This folder contains architecture and flow diagrams for the SquareX browser extension project. All diagrams are created using Mermaid and can be exported to PNG and SVG formats.
 
-## Overview
+## Available Diagrams
 
-This directory contains visual documentation including architecture diagrams, sequence diagrams, and flow charts that help understand the system design and data flow.
+### **Architecture Overview**
+- **File**: [`architecture-overview.md`](architecture-overview.md)
+- **Description**: High-level project architecture showing component relationships
+- **Shows**: Browser extensions, core components, build system, and development tools
+
+### **WASM Module Architecture**
+- **File**: [`wasm-module-architecture.md`](wasm-module-architecture.md)
+- **Description**: Internal structure of the Rust WASM analysis module
+- **Shows**: Analysis algorithms, utilities, data structures, and JavaScript interface
+
+### **Browser Extension Workflow**
+- **File**: [`extension-workflow.md`](extension-workflow.md)
+- **Description**: Sequence diagram of file upload processing
+- **Shows**: User interaction, content script, background script, and WASM analysis flow
+
+### **Build Pipeline**
+- **File**: [`build-pipeline.md`](build-pipeline.md)
+- **Description**: Build process and dependency flow
+- **Shows**: Source code, build tools, outputs, and package management
 
 ## Diagram Types
 
@@ -60,28 +78,50 @@ diagrams/
     └── pdf/
 ```
 
-## Tools and Workflow
+## Exporting Diagrams
 
-### Diagram Creation
-- **Mermaid**: Primary diagram format for version control
-- **Draw.io**: Alternative for complex diagrams
-- **PlantUML**: For UML-style diagrams
-
-### Generation Commands
-
+### **Prerequisites**
+Install the Mermaid CLI tool:
 ```bash
-# Generate PNG images from Mermaid files
-npm run diagrams:generate:png
-
-# Generate SVG images from Mermaid files
-npm run diagrams:generate:svg
-
-# Generate PDF documentation
-npm run diagrams:generate:pdf
-
-# Watch for changes and regenerate
-npm run diagrams:watch
+npm install -g @mermaid-js/mermaid-cli
 ```
+
+### **Export All Diagrams**
+```bash
+./diagrams/export-diagrams.sh
+```
+
+This will generate:
+- **PNG files**: `diagrams/png/`
+- **SVG files**: `diagrams/svg/`
+
+### **Manual Export**
+Export individual diagrams:
+```bash
+# Extract Mermaid code from markdown
+awk '/```mermaid/,/```/' diagrams/architecture-overview.md | grep -v '```' > temp.mmd
+
+# Export to PNG
+mmdc -i temp.mmd -o diagrams/png/architecture-overview.png
+
+# Export to SVG
+mmdc -i temp.mmd -o diagrams/svg/architecture-overview.svg
+
+# Clean up
+rm temp.mmd
+```
+
+## Viewing Diagrams
+
+### **In Markdown**
+The diagrams are embedded in markdown files and will render in:
+- GitHub (native Mermaid support)
+- GitLab (native Mermaid support)
+- VS Code with Mermaid extension
+- Other markdown viewers with Mermaid support
+
+### **As Images**
+After exporting, you can view the generated PNG/SVG files in any image viewer or include them in documentation.
 
 ### Mermaid Syntax
 
@@ -102,18 +142,30 @@ Diagrams are integrated into:
 - **Component READMEs**: Component-specific documentation
 - **API Documentation**: Interface and flow documentation
 
-## Maintenance
+## Diagram Maintenance
 
-### Version Control
+### **Adding New Diagrams**
+1. Create a new `.md` file in the `diagrams/` folder
+2. Use the Mermaid syntax with proper documentation
+3. Update this README to include the new diagram
+4. Run the export script to generate images
+
+### **Updating Diagrams**
+1. Modify the Mermaid code in the `.md` file
+2. Run the export script to regenerate images
+3. Update any documentation that references the diagrams
+
+### **Best Practices**
+- Use descriptive names for diagram files
+- Include clear documentation for each diagram
+- Use consistent styling and colors
+- Keep diagrams focused and readable
+- Update diagrams when architecture changes
+
+## Version Control
 - Mermaid source files are version controlled
 - Generated images are excluded from version control
 - Diagram updates are part of code review process
-
-### Update Process
-1. Modify Mermaid source files
-2. Regenerate images using build scripts
-3. Update documentation references
-4. Review changes in pull request
 
 ## Browser-Specific Diagrams
 

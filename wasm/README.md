@@ -39,6 +39,8 @@ This module implements the core analysis algorithms in Rust and compiles to WebA
 ### Purpose
 The WASM module serves as the core analysis engine for the browser extension, providing high-performance security scanning capabilities through WebAssembly. It implements all analysis algorithms in Rust for optimal performance and memory efficiency.
 
+For a visual representation of the WASM module architecture, see the [WASM Module Architecture diagram](../../diagrams/wasm-module-architecture.md).
+
 ### File Layout
 ```
 wasm/

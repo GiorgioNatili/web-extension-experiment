@@ -39,6 +39,8 @@ This module contains shared code that is used by all browser extensions, providi
 ### Purpose
 The shared utilities package provides common code, types, and interfaces used across all browser extensions. It ensures consistency and reduces code duplication while providing cross-browser abstraction layers.
 
+For a visual representation of how shared utilities fit into the overall architecture, see the [Architecture Overview diagram](../../diagrams/architecture-overview.md).
+
 ### File Layout
 ```
 shared/
