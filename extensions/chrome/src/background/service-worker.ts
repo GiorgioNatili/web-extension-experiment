@@ -1,4 +1,6 @@
 import { CONFIG, MESSAGES } from 'shared';
+import { chromeWASMLoader } from './wasm-loader';
+import { chromeErrorHandler, ErrorType } from '../utils/error-handler';
 
 console.log('SquareX File Scanner Service Worker loaded');
 
@@ -9,6 +11,24 @@ const CHUNK_SIZE = CONFIG.CHUNK_SIZE; // 1MB
 
 // In-memory storage for streaming operations
 const streamingOperations = new Map<string, any>();
+
+// Initialize WASM module on startup
+async function initializeWASM() {
+  try {
+    await chromeWASMLoader.loadWASMModule();
+    console.log('WASM module initialized successfully');
+  } catch (error) {
+    console.error('Failed to initialize WASM module:', error);
+    // Handle WASM initialization error
+    const recovery = await chromeErrorHandler.handleError(error as Error, { operation: 'wasm_init' });
+    if (!recovery.recovered) {
+      console.error('WASM initialization failed and could not be recovered');
+    }
+  }
+}
+
+// Initialize on startup
+initializeWASM();
 
 // Handle messages from content script
 chrome.runtime.onMessage.addListener((message: any, sender, sendResponse) => {
@@ -32,7 +52,18 @@ chrome.runtime.onMessage.addListener((message: any, sender, sendResponse) => {
       return true;
       
     case 'GET_STATUS':
-      sendResponse({ status: 'ready' });
+      sendResponse({ 
+        status: 'ready',
+        wasm_loaded: chromeWASMLoader.isModuleLoaded(),
+        error_stats: chromeErrorHandler.getErrorStats()
+      });
+      break;
+      
+    case 'GET_ERROR_LOG':
+      sendResponse({ 
+        error_log: chromeErrorHandler.getErrorLog(),
+        error_stats: chromeErrorHandler.getErrorStats()
+      });
       break;
       
     default:
@@ -47,27 +78,36 @@ async function handleFileAnalysis(message: any, sendResponse: (response: any) =>
   try {
     console.log('Starting file analysis...');
     
-    // Mock analysis for now
-    const result = {
-      topWords: [],
-      bannedPhrases: [],
-      piiPatterns: [],
-      entropy: 3.5,
-      isObfuscated: false,
-      decision: 'allow' as const,
-      reason: MESSAGES.REASON_SAFE,
-      riskScore: 0.1
-    };
+    // Ensure WASM module is loaded
+    if (!chromeWASMLoader.isModuleLoaded()) {
+      await chromeWASMLoader.loadWASMModule();
+    }
+    
+    // Create analyzer and process content
+    const analyzer = chromeWASMLoader.createStreamingAnalyzer();
+    analyzer.processChunk(message.data.content);
+    const result = analyzer.finalize();
     
     console.log('Analysis complete:', result);
     sendResponse({ success: true, result });
     
   } catch (error) {
     console.error('Analysis failed:', error);
-    sendResponse({ 
-      success: false, 
-      error: MESSAGES.ANALYSIS_FAILED 
+    
+    // Handle error with recovery
+    const recovery = await chromeErrorHandler.handleError(error as Error, {
+      operation: 'file_analysis',
+      context: { fileName: message.data.fileName }
     });
+    
+    if (recovery.recovered && recovery.fallbackResult) {
+      sendResponse({ success: true, result: recovery.fallbackResult });
+    } else {
+      sendResponse({ 
+        success: false, 
+        error: MESSAGES.ANALYSIS_FAILED 
+      });
+    }
   }
 }
 

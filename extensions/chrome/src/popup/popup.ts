@@ -1,57 +1,107 @@
-import { MESSAGES } from 'shared';
+import { CONFIG, MESSAGES } from 'shared';
 
 console.log('SquareX File Scanner Popup loaded');
 
-document.addEventListener('DOMContentLoaded', () => {
-  const statusElement = document.getElementById('status') as HTMLElement;
-  const testButton = document.getElementById('testButton') as HTMLButtonElement;
+// DOM elements
+let toggleButton: HTMLButtonElement | null = null;
+let statusElement: HTMLElement | null = null;
+let wasmStatusElement: HTMLElement | null = null;
+let errorStatsElement: HTMLElement | null = null;
+
+// Initialize popup
+async function initializePopup() {
+  console.log('Initializing popup...');
+  
+  // Get DOM elements
+  toggleButton = document.getElementById('toggleButton') as HTMLButtonElement;
+  statusElement = document.getElementById('status');
+  wasmStatusElement = document.getElementById('wasmStatus');
+  errorStatsElement = document.getElementById('errorStats');
+  
+  // Load current settings
+  const result = await chrome.storage.local.get(['scannerEnabled', 'entropyThreshold']);
+  const scannerEnabled = result.scannerEnabled !== false; // Default to true
+  
+  // Update UI
+  if (toggleButton) {
+    toggleButton.textContent = scannerEnabled ? 'Disable Scanner' : 'Enable Scanner';
+    toggleButton.addEventListener('click', toggleScanner);
+  }
   
   // Check extension status
-  checkStatus();
-  
-  // Handle test button click
-  testButton.addEventListener('click', handleTestClick);
-  
-  async function checkStatus() {
-    try {
-      const response = await chrome.runtime.sendMessage({ type: 'GET_STATUS' });
+  await updateStatus();
+}
+
+// Toggle scanner on/off
+async function toggleScanner() {
+  try {
+    const result = await chrome.storage.local.get(['scannerEnabled']);
+    const newStatus = !result.scannerEnabled;
+    
+    await chrome.storage.local.set({ scannerEnabled: newStatus });
+    
+    if (toggleButton) {
+      toggleButton.textContent = newStatus ? 'Disable Scanner' : 'Enable Scanner';
+    }
+    
+    console.log('Scanner toggled:', newStatus);
+  } catch (error) {
+    console.error('Failed to toggle scanner:', error);
+  }
+}
+
+// Update status display
+async function updateStatus() {
+  try {
+    const response = await chrome.runtime.sendMessage({ type: 'GET_STATUS' });
+    
+    if (statusElement) {
       if (response.status === 'ready') {
-        statusElement.textContent = 'Status: Ready';
+        statusElement.textContent = 'Ready';
         statusElement.className = 'status ready';
-      } else {
-        statusElement.textContent = 'Status: Error';
+      } else if (response.status === 'busy') {
+        statusElement.textContent = 'Processing';
+        statusElement.className = 'status busy';
+      } else if (response.status === 'error') {
+        statusElement.textContent = 'Error';
         statusElement.className = 'status error';
       }
-    } catch (error) {
-      console.error('Status check failed:', error);
-      statusElement.textContent = 'Status: Error';
+    }
+    
+    if (wasmStatusElement) {
+      if (response.wasm_loaded) {
+        wasmStatusElement.textContent = 'WASM Loaded';
+        wasmStatusElement.className = 'status success';
+      } else {
+        wasmStatusElement.textContent = 'WASM Not Loaded';
+        wasmStatusElement.className = 'status error';
+      }
+    }
+    
+    if (errorStatsElement && response.error_stats) {
+      errorStatsElement.textContent = `${response.error_stats.total} errors (${response.error_stats.recent} recent)`;
+      errorStatsElement.className = 'status info';
+    }
+    
+    // Add performance metrics if available
+    if (response.performance && statusElement) {
+      statusElement.innerHTML = `Ready - Performance: ${response.performance.timing.total_time}ms`;
+    }
+    
+    // Add timestamp
+    if (statusElement) {
+      const now = new Date();
+      statusElement.innerHTML += ` - ${now.toLocaleTimeString()}`;
+    }
+    
+  } catch (error) {
+    console.error('Failed to update status:', error);
+    if (statusElement) {
+      statusElement.textContent = 'Error';
       statusElement.className = 'status error';
     }
   }
-  
-  async function handleTestClick() {
-    testButton.disabled = true;
-    testButton.textContent = 'Testing...';
-    
-    try {
-      // Test with sample content
-      const testContent = 'This is a test file with some sample content.';
-      const response = await chrome.runtime.sendMessage({
-        type: 'ANALYZE_FILE',
-        data: { content: testContent, fileName: 'test.txt' }
-      });
-      
-      if (response.success) {
-        alert('Test successful! Analysis completed.');
-      } else {
-        alert('Test failed: ' + (response.error || 'Unknown error'));
-      }
-    } catch (error) {
-      console.error('Test failed:', error);
-      alert('Test failed: ' + error);
-    } finally {
-      testButton.disabled = false;
-      testButton.textContent = 'Test Analysis';
-    }
-  }
-});
+}
+
+// Initialize when DOM is ready
+document.addEventListener('DOMContentLoaded', initializePopup);

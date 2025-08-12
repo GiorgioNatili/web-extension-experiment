@@ -5,78 +5,185 @@
   <title>SquareX File Scanner - Options</title>
   <style>
     body {
-      max-width: 600px;
+      font-family: Arial, sans-serif;
+      max-width: 800px;
       margin: 0 auto;
       padding: 20px;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f5f5;
     }
-    .section {
-      margin-bottom: 24px;
-      padding: 16px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
+    
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
     }
-    .setting {
-      margin-bottom: 16px;
+    
+    .header h1 {
+      color: #333;
+      margin: 0;
     }
-    label {
+    
+    .header p {
+      color: #666;
+      margin: 10px 0 0 0;
+    }
+    
+    .settings-section {
+      background: white;
+      border-radius: 8px;
+      padding: 25px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .settings-section h2 {
+      color: #333;
+      margin: 0 0 20px 0;
+      font-size: 18px;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    .form-group label {
       display: block;
-      margin-bottom: 4px;
-      font-weight: 500;
+      margin-bottom: 8px;
+      font-weight: bold;
+      color: #333;
     }
-    input[type="number"], input[type="text"] {
+    
+    .form-group input,
+    .form-group textarea {
       width: 100%;
-      padding: 8px;
+      padding: 10px;
       border: 1px solid #ddd;
       border-radius: 4px;
+      font-size: 14px;
+      box-sizing: border-box;
     }
-    .button {
-      padding: 8px 16px;
-      background-color: #007bff;
+    
+    .form-group textarea {
+      min-height: 80px;
+      resize: vertical;
+    }
+    
+    .form-group .help-text {
+      font-size: 12px;
+      color: #666;
+      margin-top: 5px;
+    }
+    
+    .controls {
+      text-align: center;
+      margin-top: 30px;
+    }
+    
+    button {
+      background: #007bff;
       color: white;
       border: none;
+      padding: 12px 24px;
       border-radius: 4px;
       cursor: pointer;
+      font-size: 14px;
+      margin: 0 10px;
+      transition: background-color 0.3s;
     }
-    .button:hover {
-      background-color: #0056b3;
+    
+    button:hover {
+      background: #0056b3;
+    }
+    
+    button:disabled {
+      background: #6c757d;
+      cursor: not-allowed;
+    }
+    
+    .save-status {
+      text-align: center;
+      margin-top: 15px;
+      padding: 10px;
+      border-radius: 4px;
+      font-weight: bold;
+    }
+    
+    .save-status.success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    
+    .save-status.error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    
+    .footer {
+      text-align: center;
+      margin-top: 30px;
+      color: #666;
+      font-size: 12px;
     }
   </style>
 </head>
 <body>
-  <h1>SquareX File Scanner Options</h1>
+  <div class="header">
+    <h1>SquareX File Scanner</h1>
+    <p>Configuration Settings</p>
+  </div>
   
-  <div class="section">
-    <h2>Analysis Settings</h2>
+  <div class="settings-section">
+    <h2>Analysis Thresholds</h2>
     
-    <div class="setting">
-      <label for="entropyThreshold">Entropy Threshold:</label>
-      <input type="number" id="entropyThreshold" step="0.1" min="0" max="8">
-      <small>Files with entropy above this value will be flagged as suspicious</small>
+    <div class="form-group">
+      <label for="entropyThreshold">Entropy Threshold</label>
+      <input type="number" id="entropyThreshold" min="0" max="10" step="0.1" value="4.8">
+      <div class="help-text">
+        Files with entropy above this threshold are considered potentially obfuscated. 
+        Range: 0.0 - 10.0 (Default: 4.8)
+      </div>
     </div>
     
-    <div class="setting">
-      <label for="riskThreshold">Risk Threshold:</label>
-      <input type="number" id="riskThreshold" step="0.1" min="0" max="1">
-      <small>Files with risk score above this value will be blocked</small>
+    <div class="form-group">
+      <label for="riskThreshold">Risk Threshold</label>
+      <input type="number" id="riskThreshold" min="0" max="1" step="0.1" value="0.6">
+      <div class="help-text">
+        Files with risk score above this threshold are blocked. 
+        Range: 0.0 - 1.0 (Default: 0.6)
+      </div>
     </div>
   </div>
   
-  <div class="section">
-    <h2>File Processing</h2>
+  <div class="settings-section">
+    <h2>Content Filtering</h2>
     
-    <div class="setting">
-      <label for="maxFileSize">Maximum File Size (MB):</label>
-      <input type="number" id="maxFileSize" min="1" max="1000">
-      <small>Files larger than this will not be processed</small>
+    <div class="form-group">
+      <label for="bannedPhrases">Banned Phrases</label>
+      <textarea id="bannedPhrases" placeholder="Enter banned phrases separated by commas">malware,virus,trojan</textarea>
+      <div class="help-text">
+        Comma-separated list of phrases that trigger file blocking
+      </div>
+    </div>
+    
+    <div class="form-group">
+      <label for="stopwords">Stop Words</label>
+      <textarea id="stopwords" placeholder="Enter stop words separated by commas">the,a,an,and,or,but,in,on,at,to,for,of,with,by</textarea>
+      <div class="help-text">
+        Common words to exclude from analysis (comma-separated)
+      </div>
     </div>
   </div>
   
-  <div class="section">
-    <h2>Actions</h2>
-    
-    <button id="saveButton" class="button">Save Settings</button>
-    <button id="resetButton" class="button">Reset to Defaults</button>
+  <div class="controls">
+    <button id="saveButton">Save Settings</button>
+    <button id="resetButton">Reset to Defaults</button>
+  </div>
+  
+  <div id="saveStatus" class="save-status" style="display: none;"></div>
+  
+  <div class="footer">
+    <p>SquareX File Scanner v0.1.0 | Secure file analysis for web browsers</p>
   </div>
   
   <script src="options.js"></script>

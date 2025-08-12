@@ -1,78 +1,178 @@
-import { CONFIG } from 'shared';
+import { CONFIG, MESSAGES } from 'shared';
 
-console.log('SquareX File Scanner Options loaded');
+console.log('SquareX File Scanner Options Page loaded');
 
-interface Settings {
-  entropyThreshold: number;
-  riskThreshold: number;
-  maxFileSize: number;
-}
+// DOM elements
+let entropyInput: HTMLInputElement | null = null;
+let riskInput: HTMLInputElement | null = null;
+let bannedPhrasesTextarea: HTMLTextAreaElement | null = null;
+let stopwordsTextarea: HTMLTextAreaElement | null = null;
+let saveButton: HTMLButtonElement | null = null;
+let resetButton: HTMLButtonElement | null = null;
+let saveStatus: HTMLElement | null = null;
 
-const defaultSettings: Settings = {
-  entropyThreshold: CONFIG.ENTROPY_THRESHOLD,
-  riskThreshold: CONFIG.RISK_THRESHOLD,
-  maxFileSize: CONFIG.MAX_FILE_SIZE / (1024 * 1024) // Convert to MB
-};
-
-document.addEventListener('DOMContentLoaded', () => {
-  const entropyThresholdInput = document.getElementById('entropyThreshold') as HTMLInputElement;
-  const riskThresholdInput = document.getElementById('riskThreshold') as HTMLInputElement;
-  const maxFileSizeInput = document.getElementById('maxFileSize') as HTMLInputElement;
-  const saveButton = document.getElementById('saveButton') as HTMLButtonElement;
-  const resetButton = document.getElementById('resetButton') as HTMLButtonElement;
+// Initialize options page
+async function initializeOptions() {
+  console.log('Initializing options page...');
+  
+  // Get DOM elements
+  entropyInput = document.getElementById('entropyThreshold') as HTMLInputElement;
+  riskInput = document.getElementById('riskThreshold') as HTMLInputElement;
+  bannedPhrasesTextarea = document.getElementById('bannedPhrases') as HTMLTextAreaElement;
+  stopwordsTextarea = document.getElementById('stopwords') as HTMLTextAreaElement;
+  saveButton = document.getElementById('saveButton') as HTMLButtonElement;
+  resetButton = document.getElementById('resetButton') as HTMLButtonElement;
+  saveStatus = document.getElementById('saveStatus');
   
   // Load current settings
-  loadSettings();
+  const result = await chrome.storage.local.get([
+    'scannerEnabled',
+    'entropyThreshold',
+    'riskThreshold',
+    'bannedPhrases',
+    'stopwords'
+  ]);
   
-  // Handle button clicks
-  saveButton.addEventListener('click', saveSettings);
-  resetButton.addEventListener('click', resetSettings);
-  
-  async function loadSettings() {
-    try {
-      const settings = await chrome.storage.sync.get(defaultSettings);
-      
-      entropyThresholdInput.value = settings.entropyThreshold.toString();
-      riskThresholdInput.value = settings.riskThreshold.toString();
-      maxFileSizeInput.value = settings.maxFileSize.toString();
-      
-    } catch (error) {
-      console.error('Failed to load settings:', error);
-      // Use defaults
-      entropyThresholdInput.value = defaultSettings.entropyThreshold.toString();
-      riskThresholdInput.value = defaultSettings.riskThreshold.toString();
-      maxFileSizeInput.value = defaultSettings.maxFileSize.toString();
-    }
+  // Set form values
+  if (entropyInput) {
+    entropyInput.value = result.entropyThreshold || CONFIG.ENTROPY_THRESHOLD.toString();
+  }
+  if (riskInput) {
+    riskInput.value = result.riskThreshold || CONFIG.RISK_THRESHOLD.toString();
+  }
+  if (bannedPhrasesTextarea) {
+    bannedPhrasesTextarea.value = result.bannedPhrases || 'malware,virus,trojan';
+  }
+  if (stopwordsTextarea) {
+    stopwordsTextarea.value = result.stopwords || 'the,a,an,and,or,but,in,on,at,to,for,of,with,by';
   }
   
-  async function saveSettings() {
-    try {
-      const settings: Settings = {
-        entropyThreshold: parseFloat(entropyThresholdInput.value),
-        riskThreshold: parseFloat(riskThresholdInput.value),
-        maxFileSize: parseInt(maxFileSizeInput.value)
-      };
-      
-      await chrome.storage.sync.set(settings);
-      alert('Settings saved successfully!');
-      
-    } catch (error) {
-      console.error('Failed to save settings:', error);
-      alert('Failed to save settings: ' + error);
-    }
+  // Set up event listeners
+  if (saveButton) {
+    saveButton.addEventListener('click', saveSettings);
+  }
+  if (resetButton) {
+    resetButton.addEventListener('click', resetSettings);
   }
   
-  async function resetSettings() {
-    if (confirm('Are you sure you want to reset all settings to defaults?')) {
-      try {
-        await chrome.storage.sync.clear();
-        loadSettings();
-        alert('Settings reset to defaults!');
-        
-      } catch (error) {
-        console.error('Failed to reset settings:', error);
-        alert('Failed to reset settings: ' + error);
+  console.log('Options page initialized');
+}
+
+// Save settings
+async function saveSettings() {
+  if (!saveButton || !saveStatus) return;
+  
+  try {
+    // Disable button during save
+    saveButton.disabled = true;
+    saveButton.textContent = 'Saving...';
+    
+    // Validate inputs
+    const entropyThreshold = parseFloat(entropyInput?.value || '4.8');
+    const riskThreshold = parseFloat(riskInput?.value || '0.6');
+    
+    if (isNaN(entropyThreshold) || entropyThreshold < 0 || entropyThreshold > 10) {
+      if (saveStatus) {
+        saveStatus.textContent = 'Invalid entropy threshold';
+        saveStatus.className = 'save-status error';
       }
+      return;
+    }
+    
+    if (isNaN(riskThreshold) || riskThreshold < 0 || riskThreshold > 1) {
+      if (saveStatus) {
+        saveStatus.textContent = 'Invalid risk threshold';
+        saveStatus.className = 'save-status error';
+      }
+      return;
+    }
+    
+    // Save settings
+    await chrome.storage.local.set({
+      entropyThreshold: entropyInput?.value || '4.8',
+      riskThreshold: riskInput?.value || '0.6',
+      bannedPhrases: bannedPhrasesTextarea?.value || '',
+      stopwords: stopwordsTextarea?.value || ''
+    });
+    
+    if (saveStatus) {
+      saveStatus.textContent = 'Settings saved successfully!';
+      saveStatus.className = 'save-status success';
+    }
+    
+    // Clear status after delay
+    setTimeout(() => {
+      if (saveStatus) {
+        saveStatus.textContent = '';
+        saveStatus.className = '';
+      }
+    }, 3000);
+    
+  } catch (error) {
+    console.error('Failed to save settings:', error);
+    if (saveStatus) {
+      saveStatus.textContent = 'Error saving settings';
+      saveStatus.className = 'save-status error';
+    }
+  } finally {
+    // Re-enable button
+    if (saveButton) {
+      saveButton.disabled = false;
+      saveButton.textContent = 'Save';
     }
   }
-});
+}
+
+// Reset settings to defaults
+async function resetSettings() {
+  if (!resetButton || !saveStatus) return;
+  
+  try {
+    // Disable button during reset
+    resetButton.disabled = true;
+    resetButton.textContent = 'Resetting...';
+    
+    // Reset to defaults
+    if (entropyInput) {
+      entropyInput.value = CONFIG.ENTROPY_THRESHOLD.toString();
+    }
+    if (riskInput) {
+      riskInput.value = CONFIG.RISK_THRESHOLD.toString();
+    }
+    if (bannedPhrasesTextarea) {
+      bannedPhrasesTextarea.value = 'malware,virus,trojan';
+    }
+    if (stopwordsTextarea) {
+      stopwordsTextarea.value = 'the,a,an,and,or,but,in,on,at,to,for,of,with,by';
+    }
+    
+    // Save default values
+    await chrome.storage.local.set({
+      entropyThreshold: CONFIG.ENTROPY_THRESHOLD.toString(),
+      riskThreshold: CONFIG.RISK_THRESHOLD.toString(),
+      bannedPhrases: 'malware,virus,trojan',
+      stopwords: 'the,a,an,and,or,but,in,on,at,to,for,of,with,by'
+    });
+    
+    if (saveStatus) {
+      saveStatus.textContent = 'Settings reset to defaults';
+      saveStatus.className = 'save-status success';
+    }
+    
+  } catch (error) {
+    console.error('Failed to reset settings:', error);
+    if (saveStatus) {
+      saveStatus.textContent = 'Error resetting settings';
+      saveStatus.className = 'save-status error';
+    }
+  } finally {
+    // Re-enable button
+    if (resetButton) {
+      resetButton.disabled = false;
+      resetButton.textContent = 'Reset';
+    }
+  }
+}
+
+// Initialize when DOM is ready
+document.addEventListener('DOMContentLoaded', initializeOptions);
