@@ -215,7 +215,12 @@ type MessageType =
   | 'STATUS_REQUEST'
   | 'STATUS_RESPONSE'
   | 'PERFORMANCE_METRICS'
-  | 'PERFORMANCE_REPORT';
+  | 'PERFORMANCE_REPORT'
+  | 'STREAM_INIT'
+  | 'STREAM_CHUNK'
+  | 'STREAM_FINALIZE'
+  | 'STREAM_PROGRESS'
+  | 'STREAM_ERROR';
 
 /**
  * Base message interface
@@ -364,6 +369,92 @@ interface PerformanceReportMessage extends BaseMessage {
       throughput_trend: 'improving' | 'stable' | 'degrading';
     };
   };
+}
+
+/**
+ * Stream initialization message
+ */
+interface StreamInitMessage extends BaseMessage {
+  type: 'STREAM_INIT';
+  /** File information */
+  file: WasmFileInfo;
+  /** Analysis configuration */
+  config?: Partial<StreamingConfig>;
+  /** Operation identifier */
+  operation_id: string;
+  /** Expected total chunks */
+  expected_chunks?: number;
+}
+
+/**
+ * Stream chunk message
+ */
+interface StreamChunkMessage extends BaseMessage {
+  type: 'STREAM_CHUNK';
+  /** Operation identifier */
+  operation_id: string;
+  /** Chunk data */
+  chunk: {
+    /** Chunk index (0-based) */
+    index: number;
+    /** Chunk data as string */
+    data: string;
+    /** Whether this is the last chunk */
+    is_last: boolean;
+  };
+  /** Backpressure control */
+  backpressure?: {
+    /** Whether to pause sending more chunks */
+    pause: boolean;
+    /** Resume after this many milliseconds */
+    resume_after_ms?: number;
+  };
+}
+
+/**
+ * Stream finalize message
+ */
+interface StreamFinalizeMessage extends BaseMessage {
+  type: 'STREAM_FINALIZE';
+  /** Operation identifier */
+  operation_id: string;
+  /** Whether to force completion */
+  force?: boolean;
+}
+
+/**
+ * Stream progress message
+ */
+interface StreamProgressMessage extends BaseMessage {
+  type: 'STREAM_PROGRESS';
+  /** Operation identifier */
+  operation_id: string;
+  /** Progress information */
+  progress: {
+    /** Current chunk being processed */
+    current_chunk: number;
+    /** Total chunks expected */
+    total_chunks: number;
+    /** Progress percentage (0-100) */
+    percentage: number;
+    /** Processing statistics */
+    stats: ProcessingStats;
+    /** Estimated time remaining in milliseconds */
+    estimated_time_ms?: number;
+  };
+}
+
+/**
+ * Stream error message
+ */
+interface StreamErrorMessage extends BaseMessage {
+  type: 'STREAM_ERROR';
+  /** Operation identifier */
+  operation_id: string;
+  /** Error information */
+  error: WasmErrorInfo;
+  /** Whether the operation can be retried */
+  retryable: boolean;
 }
 
 // ============================================================================
@@ -664,7 +755,12 @@ type Message =
   | StatusRequestMessage
   | StatusResponseMessage
   | PerformanceMetricsMessage
-  | PerformanceReportMessage;
+  | PerformanceReportMessage
+  | StreamInitMessage
+  | StreamChunkMessage
+  | StreamFinalizeMessage
+  | StreamProgressMessage
+  | StreamErrorMessage;
 
 /**
  * Generic response wrapper
@@ -737,6 +833,11 @@ export type {
   StatusResponseMessage,
   PerformanceMetricsMessage,
   PerformanceReportMessage,
+  StreamInitMessage,
+  StreamChunkMessage,
+  StreamFinalizeMessage,
+  StreamProgressMessage,
+  StreamErrorMessage,
   ExtensionHealth,
   WasmFileInfo,
   WasmErrorInfo,
