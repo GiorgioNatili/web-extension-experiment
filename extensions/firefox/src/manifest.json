@@ -6,7 +6,8 @@
   "permissions": [
     "activeTab",
     "storage",
-    "notifications"
+    "notifications",
+    "http://localhost:8080/*"
   ],
   "background": {
     "scripts": ["background.js"],
@@ -14,7 +15,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
+      "matches": ["http://localhost:8080/*"],
       "js": ["content.js"],
       "run_at": "document_end"
     }
@@ -24,6 +25,9 @@
     "default_title": "SquareX Security Scanner"
   },
   "options_page": "options.html",
+  "web_accessible_resources": [
+    "wasm/*"
+  ],
   "icons": {
     "48": "icons/icon-48.png",
     "96": "icons/icon-96.png"
