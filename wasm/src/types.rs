@@ -21,11 +21,13 @@ pub struct AnalysisResult {
 pub struct BannedPhraseMatch {
     pub phrase: String,
     pub position: usize,
-    pub count: usize,
+    pub context: String,
+    pub severity: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PIIPattern {
+    pub type_: String,
     pub pattern: String,
     pub position: usize,
     pub confidence: f64,

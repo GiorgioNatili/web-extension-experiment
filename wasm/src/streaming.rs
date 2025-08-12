@@ -159,10 +159,16 @@ impl StreamingAnalyzer {
             let mut start = 0;
             while let Some(pos) = chunk_lower[start..].find(phrase) {
                 let actual_pos = start + pos;
+                // Get context around the match
+                let context_start = actual_pos.saturating_sub(20);
+                let context_end = (actual_pos + phrase.len() + 20).min(chunk.len());
+                let context = &chunk[context_start..context_end];
+                
                 matches.push(BannedPhraseMatch {
                     phrase: phrase.clone(),
                     position: actual_pos,
-                    count: 1,
+                    context: context.to_string(),
+                    severity: "high".to_string(),
                 });
                 start = actual_pos + phrase.len();
             }
@@ -182,6 +188,7 @@ impl StreamingAnalyzer {
         let mut patterns = Vec::new();
         for mat in PII_REGEX.find_iter(chunk) {
             patterns.push(PIIPattern {
+                type_: "numeric".to_string(),
                 pattern: mat.as_str().to_string(),
                 position: mat.start(),
                 confidence: 0.8,
