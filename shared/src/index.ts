@@ -10,6 +10,7 @@ export * from './browser/safari';
 export * from './utils/file';
 export * from './utils/ui';
 export * from './utils/validation';
+export * from './utils/performance';
 export * from './constants/config';
 export * from './constants/messages';
 

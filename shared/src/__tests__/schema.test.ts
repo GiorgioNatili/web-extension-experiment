@@ -73,7 +73,43 @@ describe('Schema Validation', () => {
         unique_words: 156,
         banned_phrase_count: 1,
         pii_pattern_count: 1,
-        processing_time_ms: 1250
+        processing_time_ms: 1250,
+        performance: {
+          timing: {
+            file_read_ms: 100,
+            wasm_analysis_ms: 800,
+            js_processing_ms: 200,
+            ui_update_ms: 150,
+            total_ms: 1250
+          },
+          memory: {
+            peak_memory_bytes: 52428800,
+            final_memory_bytes: 26214400,
+            wasm_memory_bytes: 10485760,
+            js_memory_bytes: 15728640
+          },
+          throughput: {
+            bytes_per_second: 3276800,
+            chars_per_second: 3276800,
+            chunks_per_second: 3.2,
+            avg_chunk_time_ms: 312.5
+          },
+          resources: {
+            cpu_cores_used: 4
+          },
+          quality: {
+            accuracy_score: 0.95,
+            false_positive_rate: 0.02,
+            false_negative_rate: 0.03,
+            confidence_level: 0.9
+          },
+          errors: {
+            error_count: 0,
+            warning_count: 1,
+            recovery_attempts: 0,
+            completed_successfully: true
+          }
+        }
       }
     };
 
@@ -536,7 +572,43 @@ describe('Schema Validation', () => {
           unique_words: 500,
           banned_phrase_count: 50,
           pii_pattern_count: 25,
-          processing_time_ms: 1000
+          processing_time_ms: 1000,
+          performance: {
+            timing: {
+              file_read_ms: 200,
+              wasm_analysis_ms: 600,
+              js_processing_ms: 150,
+              ui_update_ms: 50,
+              total_ms: 1000
+            },
+            memory: {
+              peak_memory_bytes: 104857600,
+              final_memory_bytes: 52428800,
+              wasm_memory_bytes: 20971520,
+              js_memory_bytes: 31457280
+            },
+            throughput: {
+              bytes_per_second: 10000000,
+              chars_per_second: 10000000,
+              chunks_per_second: 10,
+              avg_chunk_time_ms: 100
+            },
+            resources: {
+              cpu_cores_used: 8
+            },
+            quality: {
+              accuracy_score: 0.92,
+              false_positive_rate: 0.03,
+              false_negative_rate: 0.05,
+              confidence_level: 0.88
+            },
+            errors: {
+              error_count: 0,
+              warning_count: 2,
+              recovery_attempts: 0,
+              completed_successfully: true
+            }
+          }
         }
       };
 

@@ -79,6 +79,82 @@ interface ProcessingStats {
   pii_pattern_count: number;
   /** Processing time in milliseconds */
   processing_time_ms: number;
+  /** Performance metrics */
+  performance: PerformanceMetrics;
+}
+
+/**
+ * Comprehensive performance metrics
+ */
+interface PerformanceMetrics {
+  /** Total processing time breakdown */
+  timing: {
+    /** Time spent reading file */
+    file_read_ms: number;
+    /** Time spent in WASM analysis */
+    wasm_analysis_ms: number;
+    /** Time spent in JavaScript processing */
+    js_processing_ms: number;
+    /** Time spent in UI updates */
+    ui_update_ms: number;
+    /** Total end-to-end processing time */
+    total_ms: number;
+  };
+  /** Memory usage statistics */
+  memory: {
+    /** Peak memory usage in bytes */
+    peak_memory_bytes: number;
+    /** Final memory usage in bytes */
+    final_memory_bytes: number;
+    /** Memory allocated for WASM module */
+    wasm_memory_bytes: number;
+    /** Memory used by JavaScript */
+    js_memory_bytes: number;
+  };
+  /** Throughput metrics */
+  throughput: {
+    /** Processing speed in bytes per second */
+    bytes_per_second: number;
+    /** Characters processed per second */
+    chars_per_second: number;
+    /** Chunks processed per second */
+    chunks_per_second: number;
+    /** Average chunk processing time in milliseconds */
+    avg_chunk_time_ms: number;
+  };
+  /** Resource utilization */
+  resources: {
+    /** CPU usage percentage (if available) */
+    cpu_usage_percent?: number;
+    /** Number of CPU cores used */
+    cpu_cores_used: number;
+    /** Network bandwidth used in bytes */
+    network_bytes?: number;
+    /** Disk I/O operations count */
+    disk_io_operations?: number;
+  };
+  /** Quality metrics */
+  quality: {
+    /** Analysis accuracy score (0.0 - 1.0) */
+    accuracy_score: number;
+    /** False positive rate */
+    false_positive_rate: number;
+    /** False negative rate */
+    false_negative_rate: number;
+    /** Confidence level of results */
+    confidence_level: number;
+  };
+  /** Error tracking */
+  errors: {
+    /** Number of errors encountered */
+    error_count: number;
+    /** Number of warnings */
+    warning_count: number;
+    /** Recovery attempts made */
+    recovery_attempts: number;
+    /** Whether processing completed successfully */
+    completed_successfully: boolean;
+  };
 }
 
 // ============================================================================
@@ -137,7 +213,9 @@ type MessageType =
   | 'ANALYSIS_ERROR'
   | 'CONFIG_UPDATE'
   | 'STATUS_REQUEST'
-  | 'STATUS_RESPONSE';
+  | 'STATUS_RESPONSE'
+  | 'PERFORMANCE_METRICS'
+  | 'PERFORMANCE_REPORT';
 
 /**
  * Base message interface
@@ -238,6 +316,56 @@ interface StatusResponseMessage extends BaseMessage {
   health: ExtensionHealth;
 }
 
+/**
+ * Performance metrics message
+ */
+interface PerformanceMetricsMessage extends BaseMessage {
+  type: 'PERFORMANCE_METRICS';
+  /** Performance metrics for current operation */
+  metrics: PerformanceMetrics;
+  /** Operation identifier */
+  operation_id: string;
+  /** Stage of operation */
+  stage: 'start' | 'progress' | 'complete';
+}
+
+/**
+ * Performance report message
+ */
+interface PerformanceReportMessage extends BaseMessage {
+  type: 'PERFORMANCE_REPORT';
+  /** Aggregated performance statistics */
+  report: {
+    /** Time period covered */
+    period: {
+      start: number;
+      end: number;
+      duration_ms: number;
+    };
+    /** Summary statistics */
+    summary: {
+      total_operations: number;
+      successful_operations: number;
+      failed_operations: number;
+      average_processing_time_ms: number;
+      total_data_processed_bytes: number;
+    };
+    /** Performance metrics by operation type */
+    by_operation: Record<string, {
+      count: number;
+      avg_time_ms: number;
+      avg_memory_bytes: number;
+      success_rate: number;
+    }>;
+    /** Performance trends */
+    trends: {
+      processing_time_trend: 'improving' | 'stable' | 'degrading';
+      memory_usage_trend: 'stable' | 'increasing' | 'decreasing';
+      throughput_trend: 'improving' | 'stable' | 'degrading';
+    };
+  };
+}
+
 // ============================================================================
 // Extension Health and Status Types
 // ============================================================================
@@ -299,6 +427,49 @@ interface WasmErrorInfo {
 // ============================================================================
 
 /**
+ * Zod schema for PerformanceMetrics
+ */
+const PerformanceMetricsSchema = z.object({
+  timing: z.object({
+    file_read_ms: z.number(),
+    wasm_analysis_ms: z.number(),
+    js_processing_ms: z.number(),
+    ui_update_ms: z.number(),
+    total_ms: z.number()
+  }),
+  memory: z.object({
+    peak_memory_bytes: z.number(),
+    final_memory_bytes: z.number(),
+    wasm_memory_bytes: z.number(),
+    js_memory_bytes: z.number()
+  }),
+  throughput: z.object({
+    bytes_per_second: z.number(),
+    chars_per_second: z.number(),
+    chunks_per_second: z.number(),
+    avg_chunk_time_ms: z.number()
+  }),
+  resources: z.object({
+    cpu_usage_percent: z.number().optional(),
+    cpu_cores_used: z.number(),
+    network_bytes: z.number().optional(),
+    disk_io_operations: z.number().optional()
+  }),
+  quality: z.object({
+    accuracy_score: z.number().min(0).max(1),
+    false_positive_rate: z.number().min(0).max(1),
+    false_negative_rate: z.number().min(0).max(1),
+    confidence_level: z.number().min(0).max(1)
+  }),
+  errors: z.object({
+    error_count: z.number(),
+    warning_count: z.number(),
+    recovery_attempts: z.number(),
+    completed_successfully: z.boolean()
+  })
+});
+
+/**
  * Zod schema for WasmAnalysisResult
  */
 const WasmAnalysisResultSchema = z.object({
@@ -326,7 +497,8 @@ const WasmAnalysisResultSchema = z.object({
     unique_words: z.number(),
     banned_phrase_count: z.number(),
     pii_pattern_count: z.number(),
-    processing_time_ms: z.number()
+    processing_time_ms: z.number(),
+    performance: PerformanceMetricsSchema
   })
 });
 
@@ -490,7 +662,9 @@ type Message =
   | AnalysisErrorMessage
   | ConfigUpdateMessage
   | StatusRequestMessage
-  | StatusResponseMessage;
+  | StatusResponseMessage
+  | PerformanceMetricsMessage
+  | PerformanceReportMessage;
 
 /**
  * Generic response wrapper
@@ -549,6 +723,7 @@ export type {
   BannedPhraseMatch,
   PIIPattern,
   ProcessingStats,
+  PerformanceMetrics,
   StreamingConfig,
   CustomPIIPattern,
   MessageType,
@@ -560,6 +735,8 @@ export type {
   ConfigUpdateMessage,
   StatusRequestMessage,
   StatusResponseMessage,
+  PerformanceMetricsMessage,
+  PerformanceReportMessage,
   ExtensionHealth,
   WasmFileInfo,
   WasmErrorInfo,
@@ -571,6 +748,7 @@ export type {
 
 export {
   WasmAnalysisResultSchema,
+  PerformanceMetricsSchema,
   StreamingConfigSchema,
   WasmFileInfoSchema,
   BaseMessageSchema,
