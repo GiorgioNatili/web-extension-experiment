@@ -1,7 +1,7 @@
 # Missing Tests Plan
 
 **Date**: August 12, 2025  
-**Status**: Planning Phase  
+**Status**: Updated - Chrome E2E Tests Complete  
 **Priority**: High
 
 ## Overview
@@ -16,99 +16,31 @@ This document outlines a comprehensive plan for implementing missing tests acros
 |-----------|------------|------------|----------------|
 | **Shared Package** | 4 files | 97 tests | High |
 | **Chrome Extension** | 2 files | 15 tests | Medium |
+| **Chrome E2E Tests** | 4 files | 51 tests | High |
+| **Firefox Extension** | 4 files | 100+ tests | High |
 | **WASM Module** | 111 tests | 111 tests | High |
-| **E2E Tests** | 1 file | 4 tests | Low |
-| **Firefox Extension** | 0 files | 0 tests | None |
 | **Safari Extension** | 0 files | 0 tests | None |
 
 ### ❌ **Missing Test Coverage**
 
 | Component | Missing Tests | Priority | Estimated Effort |
 |-----------|---------------|----------|------------------|
-| **Firefox Extension** | All functionality | High | 40-60 hours |
 | **Safari Extension** | All functionality | Medium | 40-60 hours |
-| **E2E Tests** | Complete workflows | High | 30-40 hours |
+| **Firefox E2E Tests** | Complete workflows | High | 20-30 hours |
 | **Integration Tests** | Component interaction | High | 20-30 hours |
 | **Performance Tests** | Large file processing | Medium | 15-25 hours |
 | **Error Handling** | Edge cases | Medium | 10-15 hours |
+| **Cross-Browser E2E** | Compatibility | Medium | 15-25 hours |
 
 ## Detailed Test Plan
 
-### 1. Firefox Extension Tests
-
-#### **Priority**: High
-#### **Estimated Effort**: 40-60 hours
-#### **Location**: `extensions/firefox/src/__tests__/`
-
-#### **1.1 Background Script Tests**
-```typescript
-// extensions/firefox/src/__tests__/background.test.ts
-describe('Firefox Background Script', () => {
-  test('should handle ANALYZE_FILE message', () => {});
-  test('should handle STREAM_INIT message', () => {});
-  test('should handle STREAM_CHUNK message', () => {});
-  test('should handle STREAM_FINALIZE message', () => {});
-  test('should handle browser startup', () => {});
-  test('should handle browser shutdown', () => {});
-  test('should manage WASM module lifecycle', () => {});
-  test('should handle concurrent operations', () => {});
-  test('should implement backpressure control', () => {});
-  test('should handle timeout scenarios', () => {});
-  test('should manage memory usage', () => {});
-  test('should handle extension updates', () => {});
-});
-```
-
-#### **1.2 Content Script Tests**
-```typescript
-// extensions/firefox/src/__tests__/content.test.ts
-describe('Firefox Content Script', () => {
-  test('should inject UI elements', () => {});
-  test('should detect file upload events', () => {});
-  test('should handle file validation', () => {});
-  test('should communicate with background script', () => {});
-  test('should display analysis results', () => {});
-  test('should handle streaming progress updates', () => {});
-  test('should manage UI state', () => {});
-  test('should handle error states', () => {});
-  test('should support multiple file uploads', () => {});
-  test('should handle page navigation', () => {});
-});
-```
-
-#### **1.3 Popup Tests**
-```typescript
-// extensions/firefox/src/__tests__/popup.test.ts
-describe('Firefox Popup', () => {
-  test('should display extension status', () => {});
-  test('should show configuration options', () => {});
-  test('should handle user interactions', () => {});
-  test('should persist user preferences', () => {});
-  test('should display recent analysis history', () => {});
-  test('should handle settings updates', () => {});
-});
-```
-
-#### **1.4 Options Page Tests**
-```typescript
-// extensions/firefox/src/__tests__/options.test.ts
-describe('Firefox Options Page', () => {
-  test('should load current configuration', () => {});
-  test('should save configuration changes', () => {});
-  test('should validate user inputs', () => {});
-  test('should handle configuration reset', () => {});
-  test('should display help information', () => {});
-  test('should handle import/export settings', () => {});
-});
-```
-
-### 2. Safari Extension Tests
+### 1. Safari Extension Tests
 
 #### **Priority**: Medium
 #### **Estimated Effort**: 40-60 hours
 #### **Location**: `extensions/safari/src/__tests__/`
 
-#### **2.1 App Extension Tests**
+#### **1.1 App Extension Tests**
 ```typescript
 // extensions/safari/src/__tests__/app-extension.test.ts
 describe('Safari App Extension', () => {
@@ -121,7 +53,7 @@ describe('Safari App Extension', () => {
 });
 ```
 
-#### **2.2 Content Script Tests**
+#### **1.2 Content Script Tests**
 ```typescript
 // extensions/safari/src/__tests__/content.test.ts
 describe('Safari Content Script', () => {
@@ -134,32 +66,13 @@ describe('Safari Content Script', () => {
 });
 ```
 
-### 3. End-to-End Tests
+### 2. Firefox E2E Tests
 
 #### **Priority**: High
-#### **Estimated Effort**: 30-40 hours
-#### **Location**: `tests/src/e2e/`
+#### **Estimated Effort**: 20-30 hours
+#### **Location**: `tests/src/e2e/firefox/`
 
-#### **3.1 Chrome E2E Tests**
-```typescript
-// tests/src/e2e/chrome/extension.test.ts
-describe('Chrome Extension E2E', () => {
-  test('should load extension successfully', () => {});
-  test('should detect file upload on test page', () => {});
-  test('should analyze small text file', () => {});
-  test('should analyze large text file with streaming', () => {});
-  test('should handle file with banned phrases', () => {});
-  test('should handle file with PII patterns', () => {});
-  test('should display analysis results in UI', () => {});
-  test('should handle multiple file uploads', () => {});
-  test('should manage extension popup', () => {});
-  test('should handle extension options', () => {});
-  test('should work across different websites', () => {});
-  test('should handle extension updates', () => {});
-});
-```
-
-#### **3.2 Firefox E2E Tests**
+#### **2.1 Firefox E2E Tests**
 ```typescript
 // tests/src/e2e/firefox/extension.test.ts
 describe('Firefox Extension E2E', () => {
@@ -172,37 +85,35 @@ describe('Firefox Extension E2E', () => {
 });
 ```
 
-#### **3.3 Safari E2E Tests**
+#### **2.2 Firefox Performance Tests**
 ```typescript
-// tests/src/e2e/safari/extension.test.ts
-describe('Safari Extension E2E', () => {
-  test('should load app extension successfully', () => {});
-  test('should inject content scripts', () => {});
-  test('should handle file uploads in Safari', () => {});
-  test('should analyze files using Safari APIs', () => {});
-  test('should display results in Safari UI', () => {});
+// tests/src/e2e/firefox/performance.test.ts
+describe('Firefox Extension Performance', () => {
+  test('should maintain stable memory usage', () => {});
+  test('should process files efficiently', () => {});
+  test('should handle concurrent operations', () => {});
+  test('should manage WASM memory', () => {});
 });
 ```
 
-#### **3.4 Cross-Browser Tests**
+#### **2.3 Firefox Security Tests**
 ```typescript
-// tests/src/e2e/cross-browser/compatibility.test.ts
-describe('Cross-Browser Compatibility', () => {
-  test('should work consistently across Chrome/Firefox/Safari', () => {});
-  test('should handle browser-specific API differences', () => {});
-  test('should maintain consistent UI across browsers', () => {});
-  test('should handle browser version differences', () => {});
-  test('should work with different WASM implementations', () => {});
+// tests/src/e2e/firefox/security.test.ts
+describe('Firefox Extension Security', () => {
+  test('should detect malicious content', () => {});
+  test('should validate file inputs', () => {});
+  test('should handle security edge cases', () => {});
+  test('should implement security responses', () => {});
 });
 ```
 
-### 4. Integration Tests
+### 3. Integration Tests
 
 #### **Priority**: High
 #### **Estimated Effort**: 20-30 hours
 #### **Location**: `tests/src/integration/`
 
-#### **4.1 WASM Integration Tests**
+#### **3.1 WASM Integration Tests**
 ```typescript
 // tests/src/integration/wasm-integration.test.ts
 describe('WASM Integration', () => {
@@ -217,7 +128,7 @@ describe('WASM Integration', () => {
 });
 ```
 
-#### **4.2 Browser API Integration Tests**
+#### **3.2 Browser API Integration Tests**
 ```typescript
 // tests/src/integration/browser-integration.test.ts
 describe('Browser API Integration', () => {
@@ -231,7 +142,7 @@ describe('Browser API Integration', () => {
 });
 ```
 
-#### **4.3 File Processing Pipeline Tests**
+#### **3.3 File Processing Pipeline Tests**
 ```typescript
 // tests/src/integration/pipeline-integration.test.ts
 describe('File Processing Pipeline', () => {
@@ -241,6 +152,35 @@ describe('File Processing Pipeline', () => {
   test('should manage pipeline state across operations', () => {});
   test('should handle concurrent pipeline operations', () => {});
   test('should integrate with performance monitoring', () => {});
+});
+```
+
+### 4. Cross-Browser E2E Tests
+
+#### **Priority**: Medium
+#### **Estimated Effort**: 15-25 hours
+#### **Location**: `tests/src/e2e/cross-browser/`
+
+#### **4.1 Cross-Browser Compatibility Tests**
+```typescript
+// tests/src/e2e/cross-browser/compatibility.test.ts
+describe('Cross-Browser Compatibility', () => {
+  test('should work consistently across Chrome/Firefox/Safari', () => {});
+  test('should handle browser-specific API differences', () => {});
+  test('should maintain consistent UI across browsers', () => {});
+  test('should handle browser version differences', () => {});
+  test('should work with different WASM implementations', () => {});
+});
+```
+
+#### **4.2 Cross-Browser Performance Tests**
+```typescript
+// tests/src/e2e/cross-browser/performance.test.ts
+describe('Cross-Browser Performance', () => {
+  test('should maintain consistent performance across browsers', () => {});
+  test('should handle browser-specific performance characteristics', () => {});
+  test('should manage memory usage consistently', () => {});
+  test('should handle browser-specific optimizations', () => {});
 });
 ```
 
@@ -359,9 +299,9 @@ describe('WASM Security', () => {
 ## Implementation Strategy
 
 ### Phase 1: Critical Path Tests (Week 1-2)
-1. **Firefox Extension Tests** - High priority, blocking deployment
-2. **E2E Tests** - Essential for user workflows
-3. **Integration Tests** - Core functionality validation
+1. **Firefox E2E Tests** - High priority, complete user workflows
+2. **Integration Tests** - Core functionality validation
+3. **Cross-Browser Tests** - Compatibility validation
 
 ### Phase 2: Quality Assurance Tests (Week 3-4)
 1. **Performance Tests** - User experience optimization
@@ -442,13 +382,18 @@ describe('WASM Security', () => {
 
 ## Conclusion
 
-This comprehensive test plan addresses all major gaps in the current test coverage. Implementation should follow the phased approach to ensure critical functionality is tested first, followed by quality assurance and advanced scenarios.
+This comprehensive test plan addresses the remaining gaps in test coverage. The Chrome E2E tests are now complete, and Firefox extension tests are implemented. The focus should now be on:
 
-The estimated total effort is **155-230 hours** across 6 weeks, with the highest priority given to Firefox extension tests and E2E tests that are essential for user workflows.
+1. **Firefox E2E Tests** - Complete the user workflow testing
+2. **Integration Tests** - Validate component interactions
+3. **Cross-Browser Tests** - Ensure compatibility
+4. **Safari Extension Tests** - Complete cross-platform support
+
+The estimated total effort is **120-185 hours** across 6 weeks, with the highest priority given to Firefox E2E tests and integration tests.
 
 **Next Steps**:
-1. Review and approve this test plan
-2. Set up test infrastructure
+1. Review and approve this updated test plan
+2. Set up test infrastructure for Firefox E2E tests
 3. Begin Phase 1 implementation
 4. Establish CI/CD pipeline
 5. Monitor progress and adjust as needed
