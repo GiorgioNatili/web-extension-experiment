@@ -44,15 +44,23 @@ global.File = class MockFile {
 } as any;
 
 // Mock FileReader
-global.FileReader = class MockFileReader extends FileReader {
-  onload: ((this: FileReader, ev: ProgressEvent<FileReader>) => any) | null = null;
-  result: string | ArrayBuffer | null = null;
+global.FileReader = class MockFileReader {
+  onload: ((this: any, ev: any) => any) | null = null;
+  private _result: string | ArrayBuffer | null = null;
+
+  get result(): string | ArrayBuffer | null {
+    return this._result;
+  }
+
+  set result(value: string | ArrayBuffer | null) {
+    this._result = value;
+  }
 
   readAsText(blob: Blob) {
     setTimeout(() => {
-      this.result = 'mock file content';
+      this._result = 'mock file content';
       if (this.onload) {
-        this.onload.call(this, {} as ProgressEvent<FileReader>);
+        this.onload.call(this, {});
       }
     }, 0);
   }
