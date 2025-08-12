@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SquareX File Scanner - Options</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f8f9fa;
+      color: #333;
+      margin: 0;
+      padding: 20px;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #007bff, #0056b3);
+      color: white;
+      padding: 30px;
+      text-align: center;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 28px;
+      font-weight: 600;
+    }
+
+    .header p {
+      margin: 10px 0 0 0;
+      font-size: 16px;
+      opacity: 0.9;
+    }
+
+    .content {
+      padding: 30px;
+    }
+
+    .settings-section {
+      margin-bottom: 30px;
+      padding: 20px;
+      border: 1px solid #e9ecef;
+      border-radius: 8px;
+      background: #f8f9fa;
+    }
+
+    .settings-section h2 {
+      margin: 0 0 20px 0;
+      font-size: 20px;
+      font-weight: 600;
+      color: #495057;
+      border-bottom: 2px solid #007bff;
+      padding-bottom: 10px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #495057;
+    }
+
+    .form-group input,
+    .form-group textarea {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e9ecef;
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: inherit;
+      transition: border-color 0.2s ease;
+      box-sizing: border-box;
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: #007bff;
+      box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+    }
+
+    .form-group textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+
+    .help-text {
+      font-size: 12px;
+      color: #6c757d;
+      margin-top: 5px;
+      font-style: italic;
+    }
+
+    .controls {
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+      margin-top: 30px;
+    }
+
+    .btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      min-width: 120px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #007bff, #0056b3);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
+    }
+
+    .btn-secondary {
+      background: linear-gradient(135deg, #6c757d, #545b62);
+      color: white;
+    }
+
+    .btn-secondary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(108, 117, 125, 0.3);
+    }
+
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .save-status {
+      text-align: center;
+      margin-top: 20px;
+      padding: 10px;
+      border-radius: 6px;
+      font-weight: 500;
+    }
+
+    .save-status.success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+
+    .save-status.error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+
+    .footer {
+      background: #f8f9fa;
+      padding: 20px;
+      text-align: center;
+      border-top: 1px solid #e9ecef;
+      color: #6c757d;
+      font-size: 14px;
+    }
+
+    .footer a {
+      color: #007bff;
+      text-decoration: none;
+    }
+
+    .footer a:hover {
+      text-decoration: underline;
+    }
+
+    .validation-error {
+      color: #dc3545;
+      font-size: 12px;
+      margin-top: 5px;
+    }
+
+    .input-error {
+      border-color: #dc3545 !important;
+    }
+
+    .input-error:focus {
+      box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.1) !important;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>SquareX File Scanner</h1>
+      <p>Configuration Settings</p>
+    </div>
+    
+    <div class="content">
+      <div class="settings-section">
+        <h2>Analysis Thresholds</h2>
+        <div class="form-group">
+          <label for="entropyThreshold">Entropy Threshold</label>
+          <input type="number" id="entropyThreshold" min="0" max="10" step="0.1" value="4.8">
+          <div class="help-text">Files with entropy above this threshold are considered potentially obfuscated.</div>
+        </div>
+        <div class="form-group">
+          <label for="riskThreshold">Risk Threshold</label>
+          <input type="number" id="riskThreshold" min="0" max="1" step="0.1" value="0.6">
+          <div class="help-text">Files with risk score above this threshold are blocked.</div>
+        </div>
+      </div>
+      
+      <div class="settings-section">
+        <h2>Content Filtering</h2>
+        <div class="form-group">
+          <label for="bannedPhrases">Banned Phrases</label>
+          <textarea id="bannedPhrases" placeholder="Enter banned phrases separated by commas">malware,virus,trojan</textarea>
+          <div class="help-text">Comma-separated list of phrases that trigger file blocking</div>
+        </div>
+        <div class="form-group">
+          <label for="stopwords">Stop Words</label>
+          <textarea id="stopwords" placeholder="Enter stop words separated by commas">the,a,an,and,or,but,in,on,at,to,for,of,with,by</textarea>
+          <div class="help-text">Common words to exclude from analysis (comma-separated)</div>
+        </div>
+      </div>
+      
+      <div class="controls">
+        <button id="saveButton" class="btn btn-primary">Save Settings</button>
+        <button id="resetButton" class="btn btn-secondary">Reset to Defaults</button>
+      </div>
+      
+      <div id="saveStatus" class="save-status" style="display: none;"></div>
+    </div>
+    
+    <div class="footer">
+      <p>SquareX File Scanner v0.1.0 | Secure file analysis for Safari</p>
+      <p><a href="https://github.com/squarex/file-scanner" target="_blank">Documentation</a> | <a href="https://github.com/squarex/file-scanner/issues" target="_blank">Report Issues</a></p>
+    </div>
+  </div>
+  
+  <script src="options.js"></script>
+</body>
+</html>
