@@ -16,4 +16,11 @@ module.exports = {
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
   testPathIgnorePatterns: ['/node_modules/', '/dist/'],
   setupFilesAfterEnv: ['<rootDir>/src/__tests__/setup.ts'],
+  moduleNameMapper: {
+    '^shared$': '<rootDir>/../../shared/src/index.ts',
+    '^shared/(.*)$': '<rootDir>/../../shared/src/$1'
+  },
+  transformIgnorePatterns: [
+    'node_modules/(?!(shared)/)'
+  ]
 };
