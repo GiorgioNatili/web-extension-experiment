@@ -84,13 +84,108 @@ The extension injects ARIA-accessible UI elements:
 
 ## Installation
 
-1. Clone the repository
-2. Install dependencies: `npm install`
-3. Build the extension: `npm run build`
-4. Load unpacked extension in Chrome
-5. Navigate to `chrome://extensions/`
-6. Enable "Developer mode"
-7. Click "Load unpacked" and select the `dist` folder
+### Prerequisites
+
+- **Node.js** 18+ and **pnpm** 8+
+  ```bash
+  # Install Node.js from https://nodejs.org/
+  npm install -g pnpm
+  ```
+
+- **Chrome** browser (latest version recommended)
+
+### Build Instructions
+
+1. **Install Dependencies**:
+   ```bash
+   # From project root
+   pnpm install
+   
+   # Or from extension directory
+   cd extensions/chrome
+   npm install
+   ```
+
+2. **Build the Extension**:
+   ```bash
+   # From project root
+   pnpm build:ext:chrome
+   
+   # Or from extension directory
+   cd extensions/chrome
+   npm run build
+   ```
+
+3. **Development Build** (with watch mode):
+   ```bash
+   # From project root
+   pnpm dev:ext:chrome
+   
+   # Or from extension directory
+   cd extensions/chrome
+   npm run dev
+   ```
+
+### Load Instructions
+
+1. **Open Chrome Extensions Page**:
+   - Navigate to `chrome://extensions/`
+   - Or go to Chrome menu → More tools → Extensions
+
+2. **Enable Developer Mode**:
+   - Toggle "Developer mode" in the top-right corner
+
+3. **Load the Extension**:
+   - Click "Load unpacked" button
+   - Select the `extensions/chrome/dist` folder
+   - The extension should appear in your extensions list
+
+4. **Verify Installation**:
+   - Check that "SquareX File Scanner" appears in the list
+   - Ensure the extension is enabled (toggle should be blue)
+   - Look for any error messages in the extension card
+
+### Alternative Loading Methods
+
+#### From Project Root
+```bash
+# Build and load in one command
+pnpm load:ext:chrome
+```
+
+#### Manual Loading
+```bash
+# Build the extension
+cd extensions/chrome
+npm run build
+
+# The extension files will be in the `dist` folder
+# Load this folder in Chrome's extension manager
+```
+
+### Troubleshooting Installation
+
+#### Extension Won't Load
+- **Check Build Output**: Ensure `dist` folder contains files
+- **Verify Manifest**: Check `dist/manifest.json` exists and is valid
+- **Clear Cache**: Remove extension and reload
+- **Check Console**: Look for errors in Chrome's extension page
+
+#### Build Errors
+```bash
+# Clean and rebuild
+cd extensions/chrome
+npm run clean
+npm run build
+
+# Check for missing dependencies
+npm install
+```
+
+#### Permission Issues
+- Ensure the extension has necessary permissions
+- Check that content scripts are properly configured
+- Verify host permissions match your test sites
 
 ## Development
 

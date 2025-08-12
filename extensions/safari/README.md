@@ -108,6 +108,12 @@ pnpm build:ext:safari:debug  # Debug build
 ### Manual Build Commands
 
 ```bash
+# From extension directory
+cd extensions/safari
+
+# Install dependencies
+npm install
+
 # Development build
 npm run build:dev
 
@@ -119,31 +125,106 @@ npm run watch
 
 # Bundle analysis
 npm run analyze
+
+# Clean build
+npm run clean
 ```
 
+### Build Output
+
+After building, the extension files will be in:
+- `extensions/safari/dist/` - Built extension files
+- `extensions/safari/dist/manifest.json` - Extension manifest
+- `extensions/safari/dist/background/` - Background scripts
+- `extensions/safari/dist/content/` - Content scripts
+- `extensions/safari/dist/popup/` - Popup interface
+- `extensions/safari/dist/options/` - Options page
+
 ### Loading in Safari
+
+#### Method 1: Development Loading (Recommended for Development)
 
 1. **Build the Extension**:
    ```bash
    # Build the extension bundle
    pnpm build:ext:safari
    
-   # Open Xcode project (if applicable)
-   open safari-extension.xcodeproj
+   # Or from extension directory
+   cd extensions/safari
+   npm run build
    ```
 
-2. **Enable Safari App Extensions**:
+2. **Enable Safari Developer Mode**:
    - Open Safari
-   - Go to Safari > Preferences > Advanced
+   - Go to Safari > Settings > Advanced
    - Check "Show Develop menu in menu bar"
 
-3. **Install the Extension**:
-   - Build and run the macOS app in Xcode
-   - The extension will be installed automatically
+3. **Load the Extension**:
+   - Go to Develop > Show Extension Builder
+   - Click the "+" button to add a new extension
+   - Select "Add Extension..."
+   - Navigate to `extensions/safari/dist` and select the folder
+   - Click "Select"
 
 4. **Enable the Extension**:
-   - Go to Safari > Preferences > Extensions
+   - In Extension Builder, click "Run" to load the extension
+   - Go to Safari > Settings > Extensions
+   - Find "SquareX File Scanner" and enable it
+
+#### Method 2: Xcode Integration (For App Store Distribution)
+
+1. **Create Xcode Project** (if not exists):
+   ```bash
+   # Create a new macOS app project in Xcode
+   # Add Safari App Extension target
+   # Point to the built extension files
+   ```
+
+2. **Build and Run**:
+   - Open the Xcode project
+   - Build and run the macOS app
+   - The extension will be installed automatically
+
+3. **Enable the Extension**:
+   - Go to Safari > Settings > Extensions
    - Find your extension and enable it
+
+#### Method 3: Manual Installation
+
+1. **Build the Extension**:
+   ```bash
+   cd extensions/safari
+   npm run build
+   ```
+
+2. **Package for Distribution**:
+   ```bash
+   # Create a .safariextz file (for older Safari versions)
+   # Or use the built extension directly (Safari 13+)
+   ```
+
+3. **Install Extension**:
+   - Double-click the `.safariextz` file, or
+   - Drag the extension folder to Safari's Extensions preferences
+
+### Verification
+
+After loading, verify the extension is working:
+
+1. **Check Extension Status**:
+   - Go to Safari > Settings > Extensions
+   - Ensure "SquareX File Scanner" is enabled
+   - Check for any error messages
+
+2. **Test Functionality**:
+   - Navigate to a test page with file upload
+   - Try uploading a file to test the extension
+   - Check that the analysis UI appears
+
+3. **Debug if Needed**:
+   - Open Safari Web Inspector
+   - Go to Develop > [Extension Name] > [Page]
+   - Check console for any errors
 
 ### Testing
 

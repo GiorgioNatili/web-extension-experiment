@@ -84,13 +84,123 @@ The extension injects ARIA-accessible UI elements:
 
 ## Installation
 
-1. Clone the repository
-2. Install dependencies: `npm install`
-3. Build the extension: `npm run build`
-4. Load temporary extension in Firefox
-5. Navigate to `about:debugging`
-6. Click "This Firefox"
-7. Click "Load Temporary Add-on" and select `manifest.json`
+### Prerequisites
+
+- **Node.js** 18+ and **pnpm** 8+
+  ```bash
+  # Install Node.js from https://nodejs.org/
+  npm install -g pnpm
+  ```
+
+- **Firefox** browser (latest version recommended)
+
+### Build Instructions
+
+1. **Install Dependencies**:
+   ```bash
+   # From project root
+   pnpm install
+   
+   # Or from extension directory
+   cd extensions/firefox
+   npm install
+   ```
+
+2. **Build the Extension**:
+   ```bash
+   # From project root
+   pnpm build:ext:firefox
+   
+   # Or from extension directory
+   cd extensions/firefox
+   npm run build
+   ```
+
+3. **Development Build** (with watch mode):
+   ```bash
+   # From project root
+   pnpm dev:ext:firefox
+   
+   # Or from extension directory
+   cd extensions/firefox
+   npm run dev
+   ```
+
+### Load Instructions
+
+1. **Open Firefox Debugging Page**:
+   - Navigate to `about:debugging`
+   - Or go to Firefox menu → More tools → Web Developer → Debugger
+
+2. **Load Temporary Add-on**:
+   - Click "This Firefox" tab
+   - Click "Load Temporary Add-on" button
+   - Select the `extensions/firefox/dist/manifest.json` file
+   - The extension should appear in the list
+
+3. **Verify Installation**:
+   - Check that "SquareX File Scanner" appears in the temporary extensions list
+   - Look for any error messages in the extension details
+   - The extension will be active until Firefox is restarted
+
+### Alternative Loading Methods
+
+#### From Project Root
+```bash
+# Build and load in one command
+pnpm load:ext:firefox
+```
+
+#### Manual Loading
+```bash
+# Build the extension
+cd extensions/firefox
+npm run build
+
+# Load the manifest.json file from the dist folder
+# Navigate to about:debugging → This Firefox → Load Temporary Add-on
+```
+
+#### Permanent Installation (Development)
+```bash
+# For development, you can also use web-ext
+npm install -g web-ext
+
+# Run the extension
+cd extensions/firefox
+web-ext run --source-dir dist
+```
+
+### Troubleshooting Installation
+
+#### Extension Won't Load
+- **Check Build Output**: Ensure `dist` folder contains files
+- **Verify Manifest**: Check `dist/manifest.json` exists and is valid
+- **Check Console**: Look for errors in Firefox's debugging page
+- **Restart Firefox**: Temporary add-ons are removed on restart
+
+#### Build Errors
+```bash
+# Clean and rebuild
+cd extensions/firefox
+npm run clean
+npm run build
+
+# Check for missing dependencies
+npm install
+```
+
+#### Permission Issues
+- Ensure the extension has necessary permissions
+- Check that content scripts are properly configured
+- Verify host permissions match your test sites
+- Check for CSP (Content Security Policy) conflicts
+
+#### Temporary Add-on Limitations
+- **Session-based**: Add-on is removed when Firefox restarts
+- **Debugging Required**: Must use `about:debugging` to load
+- **No Auto-updates**: Must manually reload after code changes
+- **Limited Permissions**: Some APIs may be restricted
 
 ## Development
 
