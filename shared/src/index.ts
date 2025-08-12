@@ -12,3 +12,6 @@ export * from './utils/ui';
 export * from './utils/validation';
 export * from './constants/config';
 export * from './constants/messages';
+
+// Export comprehensive schema and types
+export * from './schema';

@@ -20,7 +20,8 @@
   },
   "dependencies": {
     "@types/chrome": "^0.0.254",
-    "@types/webextension-polyfill": "^0.10.0"
+    "@types/webextension-polyfill": "^0.10.0",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
     "@types/jest": "^29.0.0",

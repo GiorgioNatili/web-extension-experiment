@@ -44,7 +44,7 @@ global.File = class MockFile {
 } as any;
 
 // Mock FileReader
-global.FileReader = class MockFileReader {
+global.FileReader = class MockFileReader extends FileReader {
   onload: ((this: FileReader, ev: ProgressEvent<FileReader>) => any) | null = null;
   result: string | ArrayBuffer | null = null;
 
