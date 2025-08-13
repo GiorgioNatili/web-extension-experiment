@@ -45,8 +45,8 @@ For comprehensive project planning, architecture decisions, and development road
 
 ### 1. Install Dependencies
 ```bash
-# Install all project dependencies
-npm install
+# Install all project dependencies from the monorepo root
+pnpm install
 ```
 
 ### 2. Build WASM Module
@@ -161,8 +161,8 @@ cd extensions/chrome && npm run type-check
 
 ### Run CI Pipeline Locally
 ```bash
-# Install dependencies
-npm install
+# Install dependencies (monorepo root)
+pnpm install
 
 # Run full CI pipeline
 cd wasm && cargo test --lib && cd ..
@@ -282,6 +282,26 @@ npx playwright install
 # Run WASM tests
 cd ../wasm && cargo test --lib
 ```
+
+#### pnpm ERR_INVALID_THIS / META_FETCH_FAIL during install
+If you see errors like `Value of "this" must be of type URLSearchParams`, use an LTS Node via nvm and install from the repo root.
+
+```bash
+# Use Node 20 LTS
+nvm install 20
+nvm use 20
+
+# Ensure registries are correct
+npm config set registry https://registry.npmjs.org/
+pnpm config set registry https://registry.npmjs.org/
+
+# Install from monorepo root
+pnpm install
+```
+
+Notes:
+- Always run `pnpm install` from the repository root, not inside `extensions/*`.
+- Internal dependencies are linked via `workspace:*`.
 
 ### Getting Help
 - Check [docs/analysis.md](docs/analysis.md) for technical details
