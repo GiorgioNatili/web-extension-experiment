@@ -183,19 +183,19 @@ Sample files for testing:
 
 ### Performance Testing
 
+This suite includes a large-file generator and simple throughput/memory measurements.
+
 ```bash
-# Run performance benchmarks
-pnpm test:performance
+# Run performance test (default 100MB file)
+npm run test:performance
 
-# Test large file processing
-pnpm test:performance:large-files
-
-# Test memory usage
-pnpm test:performance:memory
-
-# Test WASM performance
-pnpm test:performance:wasm
+# Override file size (in MB)
+SIZE_MB=200 npm run test:performance
 ```
+
+The test logs a report with write/read throughput and heap deltas. No strict SLAs are enforced yet.
+
+Feedback requested: What is the target throughput SLA (MB/s) and acceptable memory delta for CI? Once provided, we will codify thresholds in the test.
 
 ### Browser Compatibility Testing
 
