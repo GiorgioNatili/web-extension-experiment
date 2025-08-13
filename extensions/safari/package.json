@@ -15,8 +15,8 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "shared": "file:../shared",
-    "wasm": "file:../wasm"
+    "shared": "workspace:*",
+    "wasm": "workspace:*"
   },
   "devDependencies": {
     "@types/jest": "^29.0.0",
