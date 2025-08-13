@@ -180,7 +180,7 @@ export class FirefoxWASMLoader {
       chunk_size: CONFIG.CHUNK_SIZE,
       entropy_threshold: CONFIG.ENTROPY_THRESHOLD,
       risk_threshold: CONFIG.RISK_THRESHOLD,
-      max_words: CONFIG.MAX_WORDS,
+      max_words: CONFIG.MAX_WORDS_TO_ANALYZE,
       ...config
     };
 

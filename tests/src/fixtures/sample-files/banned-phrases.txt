@@ -1,0 +1,15 @@
+This document contains confidential information.
+
+The following content is classified and should not be shared:
+- Internal company data
+- Confidential customer information
+- Proprietary technology details
+
+This file contains the phrase "confidential" which should trigger the security scanner.
+
+Additional sensitive content includes:
+- "do not share" instructions
+- "confidential" markings
+- "internal use only" notices
+
+This file should be blocked by the security scanner due to the presence of banned phrases.

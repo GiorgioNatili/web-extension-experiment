@@ -173,7 +173,7 @@ function addResultRow(fileName: string, status: string, riskScore: number, actio
     createResultsPanel();
   }
 
-  const tableBody = resultsPanel.querySelector('[role="rowgroup"]');
+  const tableBody = resultsPanel?.querySelector('[role="rowgroup"]');
   if (!tableBody) return;
 
   const row = document.createElement('div');
@@ -510,7 +510,7 @@ function setupFileMonitoring() {
   const fileInputs = document.querySelectorAll('input[type="file"]');
   
   fileInputs.forEach(input => {
-    interceptFileInput(input); // Intercept file inputs
+    interceptFileInput(input as HTMLInputElement); // Intercept file inputs
     input.addEventListener('change', handleFileSelect);
   });
   
@@ -522,7 +522,7 @@ function setupFileMonitoring() {
           const element = node as Element;
           const fileInputs = element.querySelectorAll('input[type="file"]');
           fileInputs.forEach(input => {
-            interceptFileInput(input); // Intercept file inputs
+            interceptFileInput(input as HTMLInputElement); // Intercept file inputs
             input.addEventListener('change', handleFileSelect);
           });
         }
@@ -573,7 +573,7 @@ function addUIModeToggle(): void {
       createResultsPanel();
     }
     
-    showNotification(`Switched to ${uiMode} UI mode`, 'info');
+    showNotification(`Switched to ${uiMode} UI mode`, 'success');
   });
   
   document.body.appendChild(toggle);
@@ -641,7 +641,9 @@ async function processFileWithStreaming(file: File): Promise<void> {
     
     while (offset < file.size) {
       const chunk = file.slice(offset, offset + CHUNK_SIZE);
-      const chunkText = await readFileAsText(chunk);
+      // Convert Blob to File for readFileAsText
+      const chunkFile = new File([chunk], `chunk_${chunkIndex}`, { type: file.type });
+      const chunkText = await readFileAsText(chunkFile);
       
       const chunkResponse = await chrome.runtime.sendMessage({
         type: 'STREAM_CHUNK',

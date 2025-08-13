@@ -174,7 +174,7 @@ function addResultRow(fileName: string, status: string, riskScore: number, actio
     createResultsPanel();
   }
 
-  const tableBody = resultsPanel.querySelector('[role="rowgroup"]');
+  const tableBody = resultsPanel?.querySelector('[role="rowgroup"]');
   if (!tableBody) return;
 
   const row = document.createElement('div');
@@ -272,9 +272,9 @@ function interceptFileInput(input: HTMLInputElement): void {
   input.addEventListener = function(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions) {
     if (type === 'change') {
       const wrappedListener = (event: Event) => {
-        const target = event.target as HTMLInputElement;
-        const files = target.files;
-        
+      const target = event.target as HTMLInputElement;
+      const files = target.files;
+      
         if (files && files.length > 0 && fileInterceptionEnabled) {
           event.preventDefault();
           event.stopPropagation();
@@ -382,8 +382,8 @@ async function analyzeInterceptedFile(file: File): Promise<any> {
  */
 async function analyzeFileContent(content: string, fileName: string): Promise<any> {
   try {
-    const response = await browser.runtime.sendMessage({
-      type: 'ANALYZE_FILE',
+            const response = await browser.runtime.sendMessage({
+              type: 'ANALYZE_FILE',
       data: { content, fileName }
     });
     
@@ -596,8 +596,8 @@ async function processFileWithStreaming(file: File): Promise<void> {
       type: 'STREAM_INIT',
       operation_id: operationId,
       file: { 
-        name: file.name, 
-        size: file.size, 
+                name: file.name,
+                size: file.size,
         type: file.type 
       }
     });
@@ -619,7 +619,7 @@ async function processFileWithStreaming(file: File): Promise<void> {
       const content = await readChunkAsText(chunk);
 
       // Send chunk to background script with retry logic
-      let chunkResponse;
+      let chunkResponse: any;
       let chunkRetryCount = 0;
       
       while (chunkRetryCount < maxRetries) {
@@ -649,8 +649,8 @@ async function processFileWithStreaming(file: File): Promise<void> {
           chunkRetryCount++;
           if (chunkRetryCount < maxRetries) {
             await new Promise(resolve => setTimeout(resolve, 1000 * chunkRetryCount));
-          }
-        } catch (error) {
+             }
+                     } catch (error) {
           chunkRetryCount++;
           if (chunkRetryCount >= maxRetries) {
             throw error;
@@ -805,7 +805,7 @@ async function handleFileSelect(event: Event): Promise<void> {
       if (response.success) {
         showResults(response.result, file.name);
         showNotification(MESSAGES.ANALYSIS_COMPLETE, 'success');
-      } else {
+} else {
         showNotification(response.error || MESSAGES.ANALYSIS_FAILED, 'error');
       }
     } catch (error) {
@@ -825,29 +825,29 @@ function monitorFileUploads(): void {
     interceptFileInput(input as HTMLInputElement); // Intercept file inputs
     input.addEventListener('change', handleFileSelect);
   });
-  
-  // Monitor for dynamically added file inputs
-  const observer = new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => {
-      mutation.addedNodes.forEach((node) => {
-        if (node.nodeType === Node.ELEMENT_NODE) {
-          const element = node as Element;
-          if (element.querySelector && typeof element.querySelector === 'function') {
-            const fileInputs = element.querySelectorAll('input[type="file"]');
-            fileInputs.forEach(input => {
+
+// Monitor for dynamically added file inputs
+const observer = new MutationObserver((mutations) => {
+  mutations.forEach((mutation) => {
+    mutation.addedNodes.forEach((node) => {
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        const element = node as Element;
+                 if (element.querySelector && typeof element.querySelector === 'function') {
+          const fileInputs = element.querySelectorAll('input[type="file"]');
+          fileInputs.forEach(input => {
               interceptFileInput(input as HTMLInputElement); // Intercept file inputs
               input.addEventListener('change', handleFileSelect);
             });
           }
         }
       });
-    });
   });
-  
-  observer.observe(document.body, {
-    childList: true,
-    subtree: true
-  });
+});
+
+observer.observe(document.body, {
+  childList: true,
+  subtree: true
+});
   
   // Add UI mode toggle (compact vs sidebar)
   addUIModeToggle();

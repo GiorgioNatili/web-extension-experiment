@@ -56,15 +56,18 @@ global.FileReader = jest.fn().mockImplementation(() => ({
   onerror: null
 })) as any;
 
-// Mock setTimeout and setInterval
+// Mock setTimeout and setInterval properly to avoid infinite recursion
+const originalSetTimeout = global.setTimeout;
+const originalSetInterval = global.setInterval;
+
 global.setTimeout = jest.fn((callback: Function, delay: number) => {
-  setTimeout(callback, delay);
-  return 1;
+  // Use the original setTimeout for actual execution
+  return originalSetTimeout(callback, delay);
 }) as any;
 
 global.setInterval = jest.fn((callback: Function, delay: number) => {
-  setInterval(callback, delay);
-  return 1;
+  // Use the original setInterval for actual execution
+  return originalSetInterval(callback, delay);
 }) as any;
 
 // Mock console methods

@@ -1,0 +1,11 @@
+This is a normal test file for behavioral testing.
+
+It contains regular human-readable content that should be allowed by the file scanner.
+
+The content includes:
+- Regular text content
+- Common words and phrases
+- Normal sentence structure
+- No suspicious patterns
+
+This file should pass analysis with a low risk score and be allowed for upload.

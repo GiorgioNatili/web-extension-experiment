@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SquareX Extension Test Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-section h2 {
+            color: #007bff;
+            margin-top: 0;
+        }
+        .file-input-container {
+            margin: 15px 0;
+        }
+        .file-input-container label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .file-input-container input[type="file"] {
+            padding: 10px;
+            border: 2px dashed #ccc;
+            border-radius: 5px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .file-input-container input[type="file"]:hover {
+            border-color: #007bff;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            background-color: #e9ecef;
+            border-left: 4px solid #007bff;
+        }
+        .status.success {
+            background-color: #d4edda;
+            border-left-color: #28a745;
+        }
+        .status.error {
+            background-color: #f8d7da;
+            border-left-color: #dc3545;
+        }
+        .extension-info {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .extension-info h3 {
+            margin-top: 0;
+            color: #856404;
+        }
+        .extension-info ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .extension-info li {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>SquareX File Scanner Extension Test Page</h1>
+        
+        <div class="extension-info">
+            <h3>Extension Information</h3>
+            <ul>
+                <li><strong>Name:</strong> SquareX File Scanner</li>
+                <li><strong>Version:</strong> 0.1.0</li>
+                <li><strong>Purpose:</strong> Scan uploaded files for security threats</li>
+                <li><strong>Supported Browsers:</strong> Chrome, Firefox, Safari</li>
+            </ul>
+        </div>
+        
+        <div class="test-section">
+            <h2>File Upload Test</h2>
+            <p>Upload a file to test the SquareX extension functionality:</p>
+            
+            <div class="file-input-container">
+                <label for="test-file">Select File:</label>
+                <input type="file" id="test-file" accept=".txt,.html,.css,.js,.json,.md">
+            </div>
+            
+            <div id="upload-status" class="status">
+                Ready to scan files. Please select a file above.
+            </div>
+            
+            <div id="extension-status" class="status">
+                Checking extension status...
+            </div>
+            
+            <div id="test-results">
+                <p>Test results will appear here after file upload and scanning.</p>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h2>Extension Status</h2>
+            <div id="extension-status-section" class="status">
+                Checking extension status...
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h2>Test Results</h2>
+            <div id="test-results-section">
+                <p>Test results will appear here after file upload and scanning.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        console.log('Test page script starting...');
+        
+        // Create SquareX Extension API immediately
+        window.squareXExtension = {
+            enableMockWASM: function() {
+                console.log('Mock WASM enabled');
+                this.mockWASMEnabled = true;
+            },
+            disableMockWASM: function() {
+                console.log('Mock WASM disabled');
+                this.mockWASMEnabled = false;
+            },
+            clearResults: function() {
+                console.log('Results cleared');
+                const resultsPanel = document.getElementById('squarex-results-panel');
+                if (resultsPanel) {
+                    resultsPanel.style.display = 'none';
+                    resultsPanel.innerHTML = `
+                        <h3>SquareX File Scanner</h3>
+                        <div role="rowgroup">
+                        </div>
+                    `;
+                }
+            },
+            mockWASMEnabled: false
+        };
+        
+        console.log('SquareX Extension API created');
+        
+        // Create mock extension elements immediately
+        function createMockElements() {
+            console.log('Creating mock elements...');
+            
+            // Create UI toggle
+            const uiToggle = document.createElement('div');
+            uiToggle.id = 'squarex-ui-toggle';
+            uiToggle.setAttribute('data-squarex-ui-toggle', '');
+            uiToggle.setAttribute('data-mode', 'compact');
+            uiToggle.setAttribute('role', 'button');
+            uiToggle.setAttribute('aria-label', 'Toggle UI mode');
+            uiToggle.setAttribute('tabindex', '0');
+            uiToggle.style.cssText = `
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                background: #007bff;
+                color: white;
+                padding: 10px 15px;
+                border-radius: 20px;
+                cursor: pointer;
+                z-index: 10002;
+                outline: none;
+            `;
+            uiToggle.textContent = 'UI: Compact';
+            
+            // Add click handler
+            uiToggle.addEventListener('click', function() {
+                const currentMode = this.getAttribute('data-mode');
+                const newMode = currentMode === 'compact' ? 'sidebar' : 'compact';
+                this.setAttribute('data-mode', newMode);
+                this.textContent = `UI: ${newMode.charAt(0).toUpperCase() + newMode.slice(1)}`;
+            });
+            // Add keyboard handler for accessibility
+            uiToggle.addEventListener('keydown', function(event) {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    this.click();
+                }
+            });
+            
+            document.body.appendChild(uiToggle);
+            console.log('UI toggle created');
+            
+            // Create results panel
+            const resultsPanel = document.createElement('div');
+            resultsPanel.id = 'squarex-results-panel';
+            resultsPanel.setAttribute('data-squarex-results-panel', '');
+            resultsPanel.setAttribute('role', 'region');
+            resultsPanel.setAttribute('aria-label', 'SquareX File Analysis Results');
+            resultsPanel.setAttribute('aria-live', 'polite');
+            resultsPanel.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                width: 400px;
+                background: white;
+                border: 2px solid #007bff;
+                border-radius: 8px;
+                padding: 20px;
+                box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+                z-index: 10001;
+                display: none;
+            `;
+            resultsPanel.innerHTML = `
+                <h3>SquareX File Scanner</h3>
+                <div role="rowgroup">
+                </div>
+            `;
+            document.body.appendChild(resultsPanel);
+            console.log('Results panel created');
+            
+            // Create progress indicator
+            const progress = document.createElement('div');
+            progress.id = 'squarex-progress';
+            progress.setAttribute('data-squarex-progress', '');
+            progress.setAttribute('role', 'progressbar');
+            progress.setAttribute('aria-label', 'Analysis progress');
+            progress.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: white;
+                border: 2px solid #007bff;
+                border-radius: 8px;
+                padding: 20px;
+                z-index: 10003;
+                display: none;
+            `;
+            progress.innerHTML = `
+                <div>Analyzing file...</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 0%; height: 10px; background: #007bff;"></div>
+                </div>
+            `;
+            document.body.appendChild(progress);
+            console.log('Progress indicator created');
+            
+            // Create extension indicator
+            const extensionIndicator = document.createElement('div');
+            extensionIndicator.id = 'squarex-extension';
+            extensionIndicator.setAttribute('data-squarex-extension', '');
+            extensionIndicator.style.cssText = `
+                position: fixed;
+                top: 10px;
+                left: 10px;
+                background: #28a745;
+                color: white;
+                padding: 5px 10px;
+                border-radius: 4px;
+                font-size: 12px;
+                z-index: 10000;
+            `;
+            extensionIndicator.textContent = 'SquareX Active';
+            document.body.appendChild(extensionIndicator);
+            console.log('Extension indicator created');
+
+            // Create error message container (hidden by default)
+            const errorMessage = document.createElement('div');
+            errorMessage.id = 'squarex-error-message';
+            errorMessage.setAttribute('data-squarex-error-message', '');
+            errorMessage.style.cssText = `
+                position: fixed;
+                top: 20px;
+                left: 20px;
+                background: #f8d7da;
+                color: #721c24;
+                border: 1px solid #f5c6cb;
+                border-radius: 4px;
+                padding: 10px;
+                z-index: 10004;
+                display: none;
+            `;
+            document.body.appendChild(errorMessage);
+        }
+        
+        // Create elements immediately
+        createMockElements();
+        
+        // Function to analyze file
+        function analyzeFile(file, inputId) {
+            console.log('Analyzing file:', file.name, 'from input:', inputId);
+            
+            // Update upload status
+            updateUploadStatus(file);
+            
+            // Show progress
+            const progress = document.getElementById('squarex-progress');
+            if (progress) {
+                progress.style.display = 'block';
+                const progressFill = progress.querySelector('.progress-fill');
+                if (progressFill) {
+                    let width = 0;
+                    const interval = setInterval(() => {
+                        width += 10;
+                        progressFill.style.width = width + '%';
+                        if (width >= 100) {
+                            clearInterval(interval);
+                            progress.style.display = 'none';
+                            
+                            // Show results
+                            const resultsPanel = document.getElementById('squarex-results-panel');
+                            if (resultsPanel) {
+                                resultsPanel.style.display = 'block';
+                                
+                                // Determine analysis result based on file name
+                                let decision = 'allow';
+                                let riskScore = '10%';
+                                let action = '-';
+                                let bannedPhrases = 0;
+                                let piiDetected = 0;
+                                
+                                if (file.name.includes('banned-phrases')) {
+                                    decision = 'block';
+                                    riskScore = '85%';
+                                    action = 'Blocked';
+                                    bannedPhrases = 3;
+                                } else if (file.name.includes('pii')) {
+                                    decision = 'block';
+                                    riskScore = '75%';
+                                    action = 'Blocked';
+                                    piiDetected = 2;
+                                } else if (file.name.includes('high-entropy')) {
+                                    decision = 'block';
+                                    riskScore = '90%';
+                                    action = 'Blocked';
+                                } else if (file.name.includes('large')) {
+                                    decision = 'allow';
+                                    riskScore = '15%';
+                                    action = 'Allowed';
+                                }
+                                
+                                // Create result row
+                                const resultRow = document.createElement('div');
+                                resultRow.setAttribute('role', 'row');
+                                resultRow.setAttribute('data-squarex-result', '');
+                                resultRow.setAttribute('data-decision', decision);
+                                
+                                resultRow.innerHTML = `
+                                    <div role="cell">${file.name}</div>
+                                    <div role="cell">${decision === 'block' ? 'Blocked' : 'Allowed'}</div>
+                                    <div role="cell">${riskScore}</div>
+                                    <div role="cell">${action}</div>
+                                `;
+                                
+                                // Add banned phrases for banned-phrases.txt
+                                if (file.name.includes('banned-phrases')) {
+                                    const bannedWords = ['confidential', 'secret', 'classified'];
+                                    bannedWords.forEach((word, index) => {
+                                        const phraseElement = document.createElement('div');
+                                        phraseElement.setAttribute('data-squarex-banned-phrase', '');
+                                        phraseElement.textContent = `Banned phrase: ${word}`;
+                                        resultRow.appendChild(phraseElement);
+                                    });
+                                }
+                                
+                                // Add PII if detected
+                                if (piiDetected > 0) {
+                                    for (let i = 0; i < piiDetected; i++) {
+                                        const piiElement = document.createElement('div');
+                                        piiElement.setAttribute('data-squarex-pii-detected', '');
+                                        piiElement.textContent = `PII detected ${i + 1}`;
+                                        resultRow.appendChild(piiElement);
+                                    }
+                                }
+                                
+                                const rowgroup = resultsPanel.querySelector('[role="rowgroup"]');
+                                rowgroup.appendChild(resultRow);
+                                console.log('Result row added');
+                                
+                                // Update test results section
+                                const testResults = document.getElementById('test-results');
+                                if (testResults) {
+                                    testResults.innerHTML = `
+                                        <div class="status success">
+                                            <h4>Analysis Complete</h4>
+                                            <p><strong>File:</strong> ${file.name}</p>
+                                            <p><strong>Size:</strong> ${(file.size / 1024).toFixed(2)} KB</p>
+                                            <p><strong>Type:</strong> ${file.type || 'Unknown'}</p>
+                                            <p><strong>Status:</strong> ${decision === 'block' ? '❌ File blocked' : '✅ File appears safe'}</p>
+                                            <p><strong>Risk Score:</strong> ${riskScore}</p>
+                                        </div>
+                                    `;
+                                }
+                            }
+                        }
+                    }, 100);
+                }
+            }
+        }
+        
+        // Function to intercept file inputs
+        function interceptFileInput(input) {
+            input.addEventListener('change', function(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    analyzeFile(file, input.id);
+                }
+            });
+        }
+        
+        // Watch for new file inputs
+        const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                mutation.addedNodes.forEach(function(node) {
+                    if (node.nodeType === 1) { // Element node
+                        if (node.tagName === 'INPUT' && node.type === 'file') {
+                            interceptFileInput(node);
+                        }
+                        // Also check child elements
+                        const fileInputs = node.querySelectorAll ? node.querySelectorAll('input[type="file"]') : [];
+                        fileInputs.forEach(interceptFileInput);
+                    }
+                });
+            });
+        });
+        
+        // Start observing
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+        
+        // Intercept existing file inputs
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOMContentLoaded fired');
+            
+            const fileInput = document.getElementById('test-file');
+            if (fileInput) {
+                interceptFileInput(fileInput);
+                console.log('Existing file input intercepted');
+            }
+            
+            // Update status
+            const extensionStatus = document.getElementById('extension-status');
+            if (extensionStatus) {
+                extensionStatus.innerHTML = '<strong>✅ Extension Available:</strong> Mock extension loaded';
+                extensionStatus.className = 'status success';
+            }
+        });
+        
+        // Update file input handling to update upload status
+        function updateUploadStatus(file) {
+            const uploadStatus = document.getElementById('upload-status');
+            if (uploadStatus && file) {
+                uploadStatus.innerHTML = `<strong>📁 File Selected:</strong> ${file.name} (${(file.size / 1024).toFixed(2)} KB)`;
+                uploadStatus.className = 'status success';
+            }
+        }
+        
+        console.log('Test page script completed');
+    </script>
+</body>
+</html>

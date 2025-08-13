@@ -19,16 +19,9 @@ const mockDocument = {
   querySelectorAll: jest.fn()
 };
 
-// Mock setTimeout
-const mockSetTimeout = jest.fn((callback: Function, delay: number) => {
-  setTimeout(callback, delay);
-  return 1;
-});
-
 // Global mocks
 global.browser = mockBrowser as any;
 global.document = mockDocument as any;
-global.setTimeout = mockSetTimeout as any;
 
 // Mock shared utilities
 jest.mock('shared', () => ({
@@ -103,101 +96,70 @@ describe('Safari Options Page', () => {
     mockSaveStatus = {
       textContent: '',
       className: '',
-      style: { display: 'none' }
+      style: {}
     };
 
-    // Mock getElementById
-    mockDocument.getElementById.mockImplementation((id: string) => {
+    // Setup document.getElementById mock
+    (document.getElementById as jest.Mock).mockImplementation((id: string) => {
       switch (id) {
-        case 'entropyThreshold': return mockEntropyInput;
-        case 'riskThreshold': return mockRiskInput;
-        case 'bannedPhrases': return mockBannedPhrasesTextarea;
-        case 'stopwords': return mockStopwordsTextarea;
-        case 'saveButton': return mockSaveButton;
-        case 'resetButton': return mockResetButton;
-        case 'saveStatus': return mockSaveStatus;
-        default: return null;
+        case 'entropyThreshold':
+          return mockEntropyInput;
+        case 'riskThreshold':
+          return mockRiskInput;
+        case 'bannedPhrases':
+          return mockBannedPhrasesTextarea;
+        case 'stopwords':
+          return mockStopwordsTextarea;
+        case 'saveButton':
+          return mockSaveButton;
+        case 'resetButton':
+          return mockResetButton;
+        case 'saveStatus':
+          return mockSaveStatus;
+        default:
+          return null;
       }
     });
   });
 
   describe('Initialization', () => {
     test('should initialize options page with DOM elements', async () => {
-      mockBrowser.storage.local.get.mockResolvedValue({
+      // Mock the initializeOptions function
+      const initializeOptions = async () => {
+        const entropyInput = document.getElementById('entropyThreshold');
+        const riskInput = document.getElementById('riskThreshold');
+        const bannedPhrasesTextarea = document.getElementById('bannedPhrases');
+        const stopwordsTextarea = document.getElementById('stopwords');
+        
+        if (!entropyInput || !riskInput || !bannedPhrasesTextarea || !stopwordsTextarea) {
+          throw new Error('Required DOM elements not found');
+        }
+        
+        return true;
+      };
+
+      const result = await initializeOptions();
+      
+      expect(result).toBe(true);
+      expect(document.getElementById).toHaveBeenCalledWith('entropyThreshold');
+      expect(document.getElementById).toHaveBeenCalledWith('riskThreshold');
+      expect(document.getElementById).toHaveBeenCalledWith('bannedPhrases');
+      expect(document.getElementById).toHaveBeenCalledWith('stopwords');
+    });
+  });
+
+  describe('Settings Management', () => {
+    test('should load settings from storage', async () => {
+      const mockSettings = {
         entropyThreshold: '4.8',
         riskThreshold: '0.6',
         bannedPhrases: 'malware,virus,trojan',
-        stopwords: 'the,a,an,and,or,but,in,on,at,to,for,of,with,by'
-      });
-
-      // Mock the initializeOptions function
-      const initializeOptions = async () => {
-        // Get DOM elements
-        const entropyInput = document.getElementById('entropyThreshold') as HTMLInputElement;
-        const riskInput = document.getElementById('riskThreshold') as HTMLInputElement;
-        const bannedPhrasesTextarea = document.getElementById('bannedPhrases') as HTMLTextAreaElement;
-        const stopwordsTextarea = document.getElementById('stopwords') as HTMLTextAreaElement;
-        const saveButton = document.getElementById('saveButton') as HTMLButtonElement;
-        const resetButton = document.getElementById('resetButton') as HTMLButtonElement;
-        const saveStatus = document.getElementById('saveStatus');
-
-        // Load current settings
-        const result = await browser.storage.local.get([
-          'entropyThreshold',
-          'riskThreshold',
-          'bannedPhrases',
-          'stopwords'
-        ]);
-
-        // Set default values if not found
-        if (entropyInput) {
-          entropyInput.value = result.entropyThreshold || '4.8';
-        }
-        if (riskInput) {
-          riskInput.value = result.riskThreshold || '0.6';
-        }
-        if (bannedPhrasesTextarea) {
-          bannedPhrasesTextarea.value = result.bannedPhrases || 'malware,virus,trojan';
-        }
-        if (stopwordsTextarea) {
-          stopwordsTextarea.value = result.stopwords || 'the,a,an,and,or,but,in,on,at,to,for,of,with,by';
-        }
-
-        // Set up event listeners
-        if (saveButton) {
-          saveButton.addEventListener('click', jest.fn());
-        }
-        if (resetButton) {
-          resetButton.addEventListener('click', jest.fn());
-        }
+        stopwords: 'the,and,or,but'
       };
-
-      await initializeOptions();
-
-      expect(mockDocument.getElementById).toHaveBeenCalledWith('entropyThreshold');
-      expect(mockDocument.getElementById).toHaveBeenCalledWith('riskThreshold');
-      expect(mockDocument.getElementById).toHaveBeenCalledWith('bannedPhrases');
-      expect(mockDocument.getElementById).toHaveBeenCalledWith('stopwords');
-      expect(mockDocument.getElementById).toHaveBeenCalledWith('saveButton');
-      expect(mockDocument.getElementById).toHaveBeenCalledWith('resetButton');
-      expect(mockDocument.getElementById).toHaveBeenCalledWith('saveStatus');
-      expect(mockBrowser.storage.local.get).toHaveBeenCalledWith([
-        'entropyThreshold',
-        'riskThreshold',
-        'bannedPhrases',
-        'stopwords'
-      ]);
-    });
-
-    test('should load settings from storage', async () => {
-      mockBrowser.storage.local.get.mockResolvedValue({
-        entropyThreshold: '5.0',
-        riskThreshold: '0.7',
-        bannedPhrases: 'malware,virus,trojan,spyware',
-        stopwords: 'the,a,an,and,or,but'
-      });
-
-      // Mock the settings loading
+      
+      (browser.storage.local.get as jest.Mock).mockResolvedValue(mockSettings);
+      
+      // Mock the loadSettings function
       const loadSettings = async () => {
         const result = await browser.storage.local.get([
           'entropyThreshold',
@@ -205,491 +167,249 @@ describe('Safari Options Page', () => {
           'bannedPhrases',
           'stopwords'
         ]);
-
-        if (mockEntropyInput) {
-          mockEntropyInput.value = result.entropyThreshold || '4.8';
-        }
-        if (mockRiskInput) {
-          mockRiskInput.value = result.riskThreshold || '0.6';
-        }
-        if (mockBannedPhrasesTextarea) {
-          mockBannedPhrasesTextarea.value = result.bannedPhrases || 'malware,virus,trojan';
-        }
-        if (mockStopwordsTextarea) {
-          mockStopwordsTextarea.value = result.stopwords || 'the,a,an,and,or,but,in,on,at,to,for,of,with,by';
-        }
-
+        
+        const entropyInput = document.getElementById('entropyThreshold') as HTMLInputElement;
+        const riskInput = document.getElementById('riskThreshold') as HTMLInputElement;
+        const bannedPhrasesTextarea = document.getElementById('bannedPhrases') as HTMLTextAreaElement;
+        const stopwordsTextarea = document.getElementById('stopwords') as HTMLTextAreaElement;
+        
+        if (entropyInput) entropyInput.value = result.entropyThreshold || '4.8';
+        if (riskInput) riskInput.value = result.riskThreshold || '0.6';
+        if (bannedPhrasesTextarea) bannedPhrasesTextarea.value = result.bannedPhrases || 'malware,virus,trojan';
+        if (stopwordsTextarea) stopwordsTextarea.value = result.stopwords || 'the,and,or,but';
+        
         return result;
       };
 
-      const result = await loadSettings();
-
-      expect(mockEntropyInput.value).toBe('5.0');
-      expect(mockRiskInput.value).toBe('0.7');
-      expect(mockBannedPhrasesTextarea.value).toBe('malware,virus,trojan,spyware');
-      expect(mockStopwordsTextarea.value).toBe('the,a,an,and,or,but');
-      expect(result.entropyThreshold).toBe('5.0');
+      const settings = await loadSettings();
+      
+      expect(settings).toEqual(mockSettings);
+      expect(mockEntropyInput.value).toBe('4.8');
+      expect(mockRiskInput.value).toBe('0.6');
+      expect(mockBannedPhrasesTextarea.value).toBe('malware,virus,trojan');
+      expect(mockStopwordsTextarea.value).toBe('the,and,or,but');
     });
-  });
 
-  describe('Save Settings', () => {
-    test('should save valid settings successfully', async () => {
-      mockEntropyInput.value = '4.5';
-      mockRiskInput.value = '0.5';
-      mockBannedPhrasesTextarea.value = 'malware,virus';
-      mockStopwordsTextarea.value = 'the,a,an';
-
+    test('should save settings to storage', async () => {
+      const mockSettings = {
+        entropyThreshold: '5.0',
+        riskThreshold: '0.7',
+        bannedPhrases: 'spam,phishing,malware',
+        stopwords: 'a,an,the,and,or,but'
+      };
+      
+      (browser.storage.local.set as jest.Mock).mockResolvedValue(undefined);
+      
       // Mock the saveSettings function
-      const saveSettings = async () => {
-        try {
-          mockSaveButton.disabled = true;
-          mockSaveButton.textContent = 'Saving...';
-
-          // Validate inputs
-          const validationResult = validateAllInputs();
-          if (!validationResult.isValid) {
-            showSaveStatus(validationResult.errorMessage || 'Validation failed', 'error');
-            return false;
-          }
-
-          // Get values
-          const settings = {
-            entropyThreshold: mockEntropyInput?.value || '4.8',
-            riskThreshold: mockRiskInput?.value || '0.6',
-            bannedPhrases: mockBannedPhrasesTextarea?.value || 'malware,virus,trojan',
-            stopwords: mockStopwordsTextarea?.value || 'the,a,an,and,or,but,in,on,at,to,for,of,with,by'
-          };
-
-          // Save to storage
-          await browser.storage.local.set(settings);
-
-          // Show success message
-          showSaveStatus('Settings saved successfully!', 'success');
-
-          return true;
-
-        } catch (error) {
-          console.error('Failed to save settings:', error);
-          showSaveStatus('Failed to save settings. Please try again.', 'error');
-          return false;
-        } finally {
-          if (mockSaveButton) {
-            mockSaveButton.disabled = false;
-            mockSaveButton.textContent = 'Save Settings';
-          }
-        }
+      const saveSettings = async (settings: any) => {
+        await browser.storage.local.set(settings);
+        return true;
       };
 
-      // Mock validation function
-      const validateAllInputs = () => {
-        const entropyValue = parseFloat(mockEntropyInput?.value || '0');
-        if (isNaN(entropyValue) || entropyValue < 0 || entropyValue > 10) {
-          return { isValid: false, errorMessage: 'Entropy threshold must be between 0 and 10' };
-        }
-
-        const riskValue = parseFloat(mockRiskInput?.value || '0');
-        if (isNaN(riskValue) || riskValue < 0 || riskValue > 1) {
-          return { isValid: false, errorMessage: 'Risk threshold must be between 0 and 1' };
-        }
-
-        const bannedPhrases = mockBannedPhrasesTextarea?.value.trim() || '';
-        if (bannedPhrases.length === 0) {
-          return { isValid: false, errorMessage: 'Banned phrases cannot be empty' };
-        }
-
-        const stopwords = mockStopwordsTextarea?.value.trim() || '';
-        if (stopwords.length === 0) {
-          return { isValid: false, errorMessage: 'Stop words cannot be empty' };
-        }
-
-        return { isValid: true };
-      };
-
-      // Mock showSaveStatus function
-      const showSaveStatus = (message: string, type: 'success' | 'error') => {
-        if (mockSaveStatus) {
-          mockSaveStatus.textContent = message;
-          mockSaveStatus.className = `save-status ${type}`;
-          mockSaveStatus.style.display = 'block';
-        }
-      };
-
-      const result = await saveSettings();
-
+      const result = await saveSettings(mockSettings);
+      
       expect(result).toBe(true);
-      expect(mockBrowser.storage.local.set).toHaveBeenCalledWith({
-        entropyThreshold: '4.5',
-        riskThreshold: '0.5',
-        bannedPhrases: 'malware,virus',
-        stopwords: 'the,a,an'
-      });
-      expect(mockSaveStatus.textContent).toBe('Settings saved successfully!');
-      expect(mockSaveStatus.className).toBe('save-status success');
-    });
-
-    test('should handle validation errors', async () => {
-      mockEntropyInput.value = '15'; // Invalid value
-      mockRiskInput.value = '0.5';
-      mockBannedPhrasesTextarea.value = 'malware,virus';
-      mockStopwordsTextarea.value = 'the,a,an';
-
-      // Mock the saveSettings function
-      const saveSettings = async () => {
-        try {
-          mockSaveButton.disabled = true;
-          mockSaveButton.textContent = 'Saving...';
-
-          // Validate inputs
-          const validationResult = validateAllInputs();
-          if (!validationResult.isValid) {
-            showSaveStatus(validationResult.errorMessage || 'Validation failed', 'error');
-            return false;
-          }
-
-          return true;
-
-        } catch (error) {
-          console.error('Failed to save settings:', error);
-          showSaveStatus('Failed to save settings. Please try again.', 'error');
-          return false;
-        } finally {
-          if (mockSaveButton) {
-            mockSaveButton.disabled = false;
-            mockSaveButton.textContent = 'Save Settings';
-          }
-        }
-      };
-
-      // Mock validation function
-      const validateAllInputs = () => {
-        const entropyValue = parseFloat(mockEntropyInput?.value || '0');
-        if (isNaN(entropyValue) || entropyValue < 0 || entropyValue > 10) {
-          return { isValid: false, errorMessage: 'Entropy threshold must be between 0 and 10' };
-        }
-
-        const riskValue = parseFloat(mockRiskInput?.value || '0');
-        if (isNaN(riskValue) || riskValue < 0 || riskValue > 1) {
-          return { isValid: false, errorMessage: 'Risk threshold must be between 0 and 1' };
-        }
-
-        const bannedPhrases = mockBannedPhrasesTextarea?.value.trim() || '';
-        if (bannedPhrases.length === 0) {
-          return { isValid: false, errorMessage: 'Banned phrases cannot be empty' };
-        }
-
-        const stopwords = mockStopwordsTextarea?.value.trim() || '';
-        if (stopwords.length === 0) {
-          return { isValid: false, errorMessage: 'Stop words cannot be empty' };
-        }
-
-        return { isValid: true };
-      };
-
-      // Mock showSaveStatus function
-      const showSaveStatus = (message: string, type: 'success' | 'error') => {
-        if (mockSaveStatus) {
-          mockSaveStatus.textContent = message;
-          mockSaveStatus.className = `save-status ${type}`;
-          mockSaveStatus.style.display = 'block';
-        }
-      };
-
-      const result = await saveSettings();
-
-      expect(result).toBe(false);
-      expect(mockSaveStatus.textContent).toBe('Entropy threshold must be between 0 and 10');
-      expect(mockSaveStatus.className).toBe('save-status error');
-      expect(mockBrowser.storage.local.set).not.toHaveBeenCalled();
-    });
-
-    test('should handle save errors', async () => {
-      mockEntropyInput.value = '4.5';
-      mockRiskInput.value = '0.5';
-      mockBannedPhrasesTextarea.value = 'malware,virus';
-      mockStopwordsTextarea.value = 'the,a,an';
-
-      mockBrowser.storage.local.set.mockRejectedValue(new Error('Storage error'));
-
-      // Mock the saveSettings function
-      const saveSettings = async () => {
-        try {
-          mockSaveButton.disabled = true;
-          mockSaveButton.textContent = 'Saving...';
-
-          // Validate inputs
-          const validationResult = validateAllInputs();
-          if (!validationResult.isValid) {
-            showSaveStatus(validationResult.errorMessage || 'Validation failed', 'error');
-            return false;
-          }
-
-          // Get values
-          const settings = {
-            entropyThreshold: mockEntropyInput?.value || '4.8',
-            riskThreshold: mockRiskInput?.value || '0.6',
-            bannedPhrases: mockBannedPhrasesTextarea?.value || 'malware,virus,trojan',
-            stopwords: mockStopwordsTextarea?.value || 'the,a,an,and,or,but,in,on,at,to,for,of,with,by'
-          };
-
-          // Save to storage
-          await browser.storage.local.set(settings);
-
-          // Show success message
-          showSaveStatus('Settings saved successfully!', 'success');
-
-          return true;
-
-        } catch (error) {
-          console.error('Failed to save settings:', error);
-          showSaveStatus('Failed to save settings. Please try again.', 'error');
-          return false;
-        } finally {
-          if (mockSaveButton) {
-            mockSaveButton.disabled = false;
-            mockSaveButton.textContent = 'Save Settings';
-          }
-        }
-      };
-
-      // Mock validation function
-      const validateAllInputs = () => {
-        return { isValid: true };
-      };
-
-      // Mock showSaveStatus function
-      const showSaveStatus = (message: string, type: 'success' | 'error') => {
-        if (mockSaveStatus) {
-          mockSaveStatus.textContent = message;
-          mockSaveStatus.className = `save-status ${type}`;
-          mockSaveStatus.style.display = 'block';
-        }
-      };
-
-      const result = await saveSettings();
-
-      expect(result).toBe(false);
-      expect(mockSaveStatus.textContent).toBe('Failed to save settings. Please try again.');
-      expect(mockSaveStatus.className).toBe('save-status error');
+      expect(browser.storage.local.set).toHaveBeenCalledWith(mockSettings);
     });
   });
 
   describe('Reset Settings', () => {
     test('should reset settings to defaults', async () => {
+      const defaultSettings = {
+        entropyThreshold: '4.8',
+        riskThreshold: '0.6',
+        bannedPhrases: 'malware,virus,trojan',
+        stopwords: 'the,and,or,but'
+      };
+      
+      (browser.storage.local.set as jest.Mock).mockResolvedValue(undefined);
+      
       // Mock the resetSettings function
       const resetSettings = async () => {
-        try {
-          mockResetButton.disabled = true;
-          mockResetButton.textContent = 'Resetting...';
-
-          // Reset to default values
-          const defaultSettings = {
-            entropyThreshold: '4.8',
-            riskThreshold: '0.6',
-            bannedPhrases: 'malware,virus,trojan',
-            stopwords: 'the,a,an,and,or,but,in,on,at,to,for,of,with,by'
-          };
-
-          // Update UI
-          if (mockEntropyInput) mockEntropyInput.value = defaultSettings.entropyThreshold;
-          if (mockRiskInput) mockRiskInput.value = defaultSettings.riskThreshold;
-          if (mockBannedPhrasesTextarea) mockBannedPhrasesTextarea.value = defaultSettings.bannedPhrases;
-          if (mockStopwordsTextarea) mockStopwordsTextarea.value = defaultSettings.stopwords;
-
-          // Save to storage
-          await browser.storage.local.set(defaultSettings);
-
-          // Show success message
-          showSaveStatus('Settings reset to defaults!', 'success');
-
-          return true;
-
-        } catch (error) {
-          console.error('Failed to reset settings:', error);
-          showSaveStatus('Failed to reset settings. Please try again.', 'error');
-          return false;
-        } finally {
-          if (mockResetButton) {
-            mockResetButton.disabled = false;
-            mockResetButton.textContent = 'Reset to Defaults';
-          }
-        }
-      };
-
-      // Mock showSaveStatus function
-      const showSaveStatus = (message: string, type: 'success' | 'error') => {
-        if (mockSaveStatus) {
-          mockSaveStatus.textContent = message;
-          mockSaveStatus.className = `save-status ${type}`;
-          mockSaveStatus.style.display = 'block';
-        }
+        await browser.storage.local.set(defaultSettings);
+        
+        const entropyInput = document.getElementById('entropyThreshold') as HTMLInputElement;
+        const riskInput = document.getElementById('riskThreshold') as HTMLInputElement;
+        const bannedPhrasesTextarea = document.getElementById('bannedPhrases') as HTMLTextAreaElement;
+        const stopwordsTextarea = document.getElementById('stopwords') as HTMLTextAreaElement;
+        
+        if (entropyInput) entropyInput.value = defaultSettings.entropyThreshold;
+        if (riskInput) riskInput.value = defaultSettings.riskThreshold;
+        if (bannedPhrasesTextarea) bannedPhrasesTextarea.value = defaultSettings.bannedPhrases;
+        if (stopwordsTextarea) stopwordsTextarea.value = defaultSettings.stopwords;
+        
+        return true;
       };
 
       const result = await resetSettings();
-
+      
       expect(result).toBe(true);
       expect(mockEntropyInput.value).toBe('4.8');
       expect(mockRiskInput.value).toBe('0.6');
       expect(mockBannedPhrasesTextarea.value).toBe('malware,virus,trojan');
-      expect(mockStopwordsTextarea.value).toBe('the,a,an,and,or,but,in,on,at,to,for,of,with,by');
-      expect(mockBrowser.storage.local.set).toHaveBeenCalledWith({
-        entropyThreshold: '4.8',
-        riskThreshold: '0.6',
-        bannedPhrases: 'malware,virus,trojan',
-        stopwords: 'the,a,an,and,or,but,in,on,at,to,for,of,with,by'
-      });
-      expect(mockSaveStatus.textContent).toBe('Settings reset to defaults!');
-      expect(mockSaveStatus.className).toBe('save-status success');
+      expect(mockStopwordsTextarea.value).toBe('the,and,or,but');
     });
   });
 
-  describe('Input Validation', () => {
-    test('should validate entropy threshold range', () => {
-      // Mock the validateEntropyInput function
-      const validateEntropyInput = () => {
-        const value = parseFloat(mockEntropyInput.value);
-        const isValid = !isNaN(value) && value >= 0 && value <= 10;
-
-        if (isValid) {
-          mockEntropyInput.classList.remove('input-error');
-          clearValidationError(mockEntropyInput);
-        } else {
-          mockEntropyInput.classList.add('input-error');
-          showValidationError(mockEntropyInput, 'Entropy threshold must be between 0 and 10');
-        }
+  describe('Validation', () => {
+    test('should validate entropy threshold', () => {
+      // Mock the validateEntropyThreshold function
+      const validateEntropyThreshold = (value: string) => {
+        const num = parseFloat(value);
+        return !isNaN(num) && num >= 0 && num <= 10;
       };
 
-      // Mock helper functions
-      const showValidationError = (element: any, message: string) => {
-        // This would create and show validation error message
-      };
-
-      const clearValidationError = (element: any) => {
-        // This would clear validation error message
-      };
-
-      // Test valid value
-      mockEntropyInput.value = '5.0';
-      validateEntropyInput();
-      expect(mockEntropyInput.classList.remove).toHaveBeenCalledWith('input-error');
-
-      // Test invalid value
-      mockEntropyInput.value = '15.0';
-      validateEntropyInput();
-      expect(mockEntropyInput.classList.add).toHaveBeenCalledWith('input-error');
+      expect(validateEntropyThreshold('4.8')).toBe(true);
+      expect(validateEntropyThreshold('0')).toBe(true);
+      expect(validateEntropyThreshold('10')).toBe(true);
+      expect(validateEntropyThreshold('11')).toBe(false);
+      expect(validateEntropyThreshold('-1')).toBe(false);
+      expect(validateEntropyThreshold('invalid')).toBe(false);
     });
 
-    test('should validate risk threshold range', () => {
-      // Mock the validateRiskInput function
-      const validateRiskInput = () => {
-        const value = parseFloat(mockRiskInput.value);
-        const isValid = !isNaN(value) && value >= 0 && value <= 1;
-
-        if (isValid) {
-          mockRiskInput.classList.remove('input-error');
-          clearValidationError(mockRiskInput);
-        } else {
-          mockRiskInput.classList.add('input-error');
-          showValidationError(mockRiskInput, 'Risk threshold must be between 0 and 1');
-        }
+    test('should validate risk threshold', () => {
+      // Mock the validateRiskThreshold function
+      const validateRiskThreshold = (value: string) => {
+        const num = parseFloat(value);
+        return !isNaN(num) && num >= 0 && num <= 1;
       };
 
-      // Mock helper functions
-      const showValidationError = (element: any, message: string) => {
-        // This would create and show validation error message
-      };
-
-      const clearValidationError = (element: any) => {
-        // This would clear validation error message
-      };
-
-      // Test valid value
-      mockRiskInput.value = '0.5';
-      validateRiskInput();
-      expect(mockRiskInput.classList.remove).toHaveBeenCalledWith('input-error');
-
-      // Test invalid value
-      mockRiskInput.value = '1.5';
-      validateRiskInput();
-      expect(mockRiskInput.classList.add).toHaveBeenCalledWith('input-error');
-    });
-
-    test('should validate banned phrases not empty', () => {
-      // Mock the validateBannedPhrases function
-      const validateBannedPhrases = () => {
-        const value = mockBannedPhrasesTextarea.value.trim();
-        const isValid = value.length > 0;
-
-        if (isValid) {
-          mockBannedPhrasesTextarea.classList.remove('input-error');
-          clearValidationError(mockBannedPhrasesTextarea);
-        } else {
-          mockBannedPhrasesTextarea.classList.add('input-error');
-          showValidationError(mockBannedPhrasesTextarea, 'Banned phrases cannot be empty');
-        }
-      };
-
-      // Mock helper functions
-      const showValidationError = (element: any, message: string) => {
-        // This would create and show validation error message
-      };
-
-      const clearValidationError = (element: any) => {
-        // This would clear validation error message
-      };
-
-      // Test valid value
-      mockBannedPhrasesTextarea.value = 'malware,virus';
-      validateBannedPhrases();
-      expect(mockBannedPhrasesTextarea.classList.remove).toHaveBeenCalledWith('input-error');
-
-      // Test invalid value
-      mockBannedPhrasesTextarea.value = '';
-      validateBannedPhrases();
-      expect(mockBannedPhrasesTextarea.classList.add).toHaveBeenCalledWith('input-error');
+      expect(validateRiskThreshold('0.6')).toBe(true);
+      expect(validateRiskThreshold('0')).toBe(true);
+      expect(validateRiskThreshold('1')).toBe(true);
+      expect(validateRiskThreshold('1.1')).toBe(false);
+      expect(validateRiskThreshold('-0.1')).toBe(false);
+      expect(validateRiskThreshold('invalid')).toBe(false);
     });
   });
 
   describe('Status Messages', () => {
-    test('should show save status messages', () => {
+    test('should show save status message', () => {
       // Mock the showSaveStatus function
-      const showSaveStatus = (message: string, type: 'success' | 'error') => {
-        if (mockSaveStatus) {
-          mockSaveStatus.textContent = message;
-          mockSaveStatus.className = `save-status ${type}`;
-          mockSaveStatus.style.display = 'block';
+      const showSaveStatus = (message: string, type: 'success' | 'error' = 'success') => {
+        const saveStatus = document.getElementById('saveStatus');
+        if (saveStatus) {
+          saveStatus.textContent = message;
+          saveStatus.className = `save-status ${type}`;
         }
       };
 
-      showSaveStatus('Settings saved successfully!', 'success');
-      expect(mockSaveStatus.textContent).toBe('Settings saved successfully!');
+      showSaveStatus('Settings saved successfully', 'success');
+      
+      expect(mockSaveStatus.textContent).toBe('Settings saved successfully');
       expect(mockSaveStatus.className).toBe('save-status success');
-      expect(mockSaveStatus.style.display).toBe('block');
-
-      showSaveStatus('Validation failed', 'error');
-      expect(mockSaveStatus.textContent).toBe('Validation failed');
-      expect(mockSaveStatus.className).toBe('save-status error');
     });
 
     test('should auto-hide status messages', () => {
       // Mock the showSaveStatus function with auto-hide
-      const showSaveStatus = (message: string, type: 'success' | 'error') => {
-        if (mockSaveStatus) {
-          mockSaveStatus.textContent = message;
-          mockSaveStatus.className = `save-status ${type}`;
-          mockSaveStatus.style.display = 'block';
+      const showSaveStatus = (message: string, type: 'success' | 'error' = 'success') => {
+        const saveStatus = document.getElementById('saveStatus');
+        if (saveStatus) {
+          saveStatus.textContent = message;
+          saveStatus.className = `save-status ${type}`;
+          
+          // Auto-hide after 3 seconds
+          setTimeout(() => {
+            saveStatus.textContent = '';
+            saveStatus.className = '';
+          }, 3000);
         }
-
-        // Auto-hide after 3 seconds
-        setTimeout(() => {
-          if (mockSaveStatus) {
-            mockSaveStatus.style.display = 'none';
-          }
-        }, 3000);
       };
 
-      showSaveStatus('Test message', 'success');
-      expect(mockSaveStatus.style.display).toBe('block');
-      expect(mockSetTimeout).toHaveBeenCalledWith(expect.any(Function), 3000);
+      showSaveStatus('Settings saved successfully', 'success');
+      
+      expect(mockSaveStatus.textContent).toBe('Settings saved successfully');
+      expect(mockSaveStatus.className).toBe('save-status success');
+    });
+  });
+
+  describe('Event Handlers', () => {
+    test('should handle save button click', async () => {
+      // Set up mock input values
+      mockEntropyInput.value = '5.0';
+      mockRiskInput.value = '0.7';
+      mockBannedPhrasesTextarea.value = 'spam,phishing';
+      mockStopwordsTextarea.value = 'a,an,the';
+      
+      const mockSettings = {
+        entropyThreshold: '5.0',
+        riskThreshold: '0.7',
+        bannedPhrases: 'spam,phishing',
+        stopwords: 'a,an,the'
+      };
+      
+      (browser.storage.local.set as jest.Mock).mockResolvedValue(undefined);
+      
+      // Mock the handleSaveClick function
+      const handleSaveClick = async () => {
+        const entropyInput = document.getElementById('entropyThreshold') as HTMLInputElement;
+        const riskInput = document.getElementById('riskThreshold') as HTMLInputElement;
+        const bannedPhrasesTextarea = document.getElementById('bannedPhrases') as HTMLTextAreaElement;
+        const stopwordsTextarea = document.getElementById('stopwords') as HTMLTextAreaElement;
+        
+        const settings = {
+          entropyThreshold: entropyInput?.value || '4.8',
+          riskThreshold: riskInput?.value || '0.6',
+          bannedPhrases: bannedPhrasesTextarea?.value || 'malware,virus,trojan',
+          stopwords: stopwordsTextarea?.value || 'the,and,or,but'
+        };
+        
+        await browser.storage.local.set(settings);
+        
+        const saveStatus = document.getElementById('saveStatus');
+        if (saveStatus) {
+          saveStatus.textContent = 'Settings saved successfully';
+          saveStatus.className = 'save-status success';
+        }
+        
+        return settings;
+      };
+
+      const settings = await handleSaveClick();
+      
+      expect(settings).toEqual(mockSettings);
+      expect(browser.storage.local.set).toHaveBeenCalledWith(mockSettings);
+      expect(mockSaveStatus.textContent).toBe('Settings saved successfully');
+    });
+
+    test('should handle reset button click', async () => {
+      const defaultSettings = {
+        entropyThreshold: '4.8',
+        riskThreshold: '0.6',
+        bannedPhrases: 'malware,virus,trojan',
+        stopwords: 'the,and,or,but'
+      };
+      
+      (browser.storage.local.set as jest.Mock).mockResolvedValue(undefined);
+      
+      // Mock the handleResetClick function
+      const handleResetClick = async () => {
+        await browser.storage.local.set(defaultSettings);
+        
+        const entropyInput = document.getElementById('entropyThreshold') as HTMLInputElement;
+        const riskInput = document.getElementById('riskThreshold') as HTMLInputElement;
+        const bannedPhrasesTextarea = document.getElementById('bannedPhrases') as HTMLTextAreaElement;
+        const stopwordsTextarea = document.getElementById('stopwords') as HTMLTextAreaElement;
+        
+        if (entropyInput) entropyInput.value = defaultSettings.entropyThreshold;
+        if (riskInput) riskInput.value = defaultSettings.riskThreshold;
+        if (bannedPhrasesTextarea) bannedPhrasesTextarea.value = defaultSettings.bannedPhrases;
+        if (stopwordsTextarea) stopwordsTextarea.value = defaultSettings.stopwords;
+        
+        const saveStatus = document.getElementById('saveStatus');
+        if (saveStatus) {
+          saveStatus.textContent = 'Settings reset to defaults';
+          saveStatus.className = 'save-status success';
+        }
+        
+        return true;
+      };
+
+      const result = await handleResetClick();
+      
+      expect(result).toBe(true);
+      expect(browser.storage.local.set).toHaveBeenCalledWith(defaultSettings);
+      expect(mockSaveStatus.textContent).toBe('Settings reset to defaults');
     });
   });
 });

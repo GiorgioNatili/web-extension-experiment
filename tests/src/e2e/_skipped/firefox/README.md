@@ -1,0 +1,1 @@
+// Skipped firefox suites placeholder

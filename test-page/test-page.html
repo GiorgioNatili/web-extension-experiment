@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SquareX File Scanner Test Page</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            padding: 20px; 
+        }
+        .upload-area { 
+            border: 2px dashed #ccc; 
+            padding: 40px; 
+            text-align: center; 
+            margin: 20px 0; 
+        }
+        .results { 
+            margin-top: 20px; 
+            padding: 20px; 
+            border: 1px solid #ddd; 
+            border-radius: 4px; 
+        }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        
+        /* Extension UI Elements */
+        .squarex-results {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 400px;
+            max-height: 80vh;
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 10000;
+            display: none;
+        }
+        
+        .squarex-results.sidebar {
+            width: 350px;
+            height: 100vh;
+            top: 0;
+            right: 0;
+            border-radius: 0;
+        }
+        
+        .squarex-results.compact {
+            width: 400px;
+            max-height: 80vh;
+        }
+        
+        .file-info {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .analysis-results {
+            padding: 15px;
+        }
+        
+        .action-buttons {
+            padding: 15px;
+            border-top: 1px solid #eee;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .analysis-progress {
+            padding: 15px;
+            display: none;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #eee;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: #007bff;
+            width: 0%;
+            transition: width 0.3s;
+        }
+        
+        .progress-text {
+            margin-top: 8px;
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .decision {
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        
+        .decision.allow { color: #28a745; }
+        .decision.block { color: #dc3545; }
+        
+        .risk-score {
+            margin: 5px 0;
+        }
+        
+        .reason {
+            margin: 5px 0;
+            font-style: italic;
+        }
+        
+        .ui-mode-toggle {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            z-index: 10001;
+        }
+        
+        .extension-icon {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            width: 40px;
+            height: 40px;
+            background: #007bff;
+            border-radius: 50%;
+            cursor: pointer;
+            z-index: 10001;
+        }
+        
+        .extension-popup {
+            position: fixed;
+            top: 60px;
+            left: 10px;
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 10002;
+            display: none;
+        }
+        
+        .extension-status {
+            margin-bottom: 10px;
+        }
+        
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            display: none;
+        }
+        
+        .network-error {
+            background: #fff3cd;
+            color: #856404;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            display: none;
+        }
+        
+        .offline-mode {
+            background: #d1ecf1;
+            color: #0c5460;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            display: none;
+        }
+        
+        .retry-button, .retry-network {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        
+        .fallback-option {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        
+        .override-button, .override-allow {
+            background: #ffc107;
+            color: #212529;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        
+        .memory-usage {
+            font-size: 12px;
+            color: #666;
+            margin-top: 10px;
+        }
+        
+        .chunk-counter {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .streaming-progress {
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            margin: 10px 0;
+            display: none;
+        }
+        
+        .fallback-indicator {
+            background: #e2e3e5;
+            color: #383d41;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin: 5px 0;
+            display: none;
+        }
+        
+        .security-flags {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            display: none;
+        }
+        
+        .pii-detected {
+            background: #fff3cd;
+            color: #856404;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            display: none;
+        }
+        
+        .pii-types {
+            font-size: 12px;
+            margin-top: 5px;
+        }
+        
+        .entropy-value {
+            font-weight: bold;
+            color: #007bff;
+        }
+        
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+        
+        .analysis-status {
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        
+        .conflict-error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            display: none;
+        }
+        
+        .upload-success {
+            background: #d4edda;
+            color: #155724;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            display: none;
+        }
+        
+        .upload-blocked {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            display: none;
+        }
+        
+        .override-log {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .file-result {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>SquareX File Scanner Test Page</h1>
+    <p>This page demonstrates the SquareX browser extension for file upload security scanning.</p>
+    
+    <!-- Extension UI Elements -->
+    <button class="ui-mode-toggle" data-mode="compact" data-squarex-ui-toggle>Toggle UI Mode</button>
+    <div class="extension-icon" data-squarex-extension></div>
+    
+    <!-- Extension Popup -->
+    <div class="extension-popup">
+        <div class="extension-status">Status: Ready</div>
+        <button id="toggle-scanner">Toggle Scanner</button>
+        <button class="extension-options">Options</button>
+    </div>
+    
+    <!-- Results Panel -->
+    <div class="squarex-results compact" data-squarex-results-panel role="region" aria-label="File Analysis Results">
+        <div class="file-info file-details">
+            <h3>File Analysis Results</h3>
+            <div class="file-result" data-squarex-result></div>
+        </div>
+        
+        <div class="analysis-results">
+            <div class="decision">Allow</div>
+            <div class="risk-score">Risk Score: 0.3</div>
+            <div class="reason">File appears safe</div>
+            <div class="entropy-value">Entropy: 3.5</div>
+        </div>
+        
+        <div class="action-buttons">
+            <button class="override-button">Override</button>
+            <button class="retry-button">Retry</button>
+        </div>
+    </div>
+    
+    <!-- Progress Indicators -->
+    <div class="analysis-progress" data-squarex-progress aria-live="polite">
+        <div class="progress-bar">
+            <div class="progress-fill"></div>
+        </div>
+        <div class="progress-text">Analyzing file...</div>
+    </div>
+    
+    <div class="streaming-progress">
+        <div class="progress-bar">
+            <div class="progress-fill"></div>
+        </div>
+        <div class="progress-text">Streaming analysis...</div>
+        <div class="chunk-counter">Chunks processed: 0</div>
+    </div>
+    
+    <!-- Error Messages -->
+    <div class="error-message" data-squarex-error-message></div>
+    <div class="network-error"></div>
+    <div class="offline-mode"></div>
+    <div class="conflict-error"></div>
+    
+    <!-- Status Messages -->
+    <div class="upload-success"></div>
+    <div class="upload-blocked"></div>
+    <div class="fallback-indicator"></div>
+    <div class="security-flags"></div>
+    <div class="pii-detected"></div>
+    
+    <!-- Analysis Status -->
+    <div class="analysis-status" aria-live="polite"></div>
+    
+    <!-- Screen Reader Announcements -->
+    <div class="sr-only" aria-live="assertive"></div>
+    
+    <!-- Upload Areas -->
+    <div class="upload-area">
+        <h3>Upload a .txt file to test the extension</h3>
+        <input type="file" id="file-input" accept=".txt" />
+        <input type="file" id="large-file-input" accept=".txt" />
+        <input type="file" id="mock-entropy-input" accept=".txt" />
+        <input type="file" id="progress-test-input" accept=".txt" />
+        <input type="file" id="performance-test-input" accept=".txt" />
+        <p><small>Only .txt files are supported for testing</small></p>
+    </div>
+    
+    <div id="results" class="results" style="display: none;"></div>
+    
+    <!-- Options Panel -->
+    <div class="options-panel" style="display: none;">
+        <h3>Extension Options</h3>
+        <div class="entropy-threshold">
+            <label>Entropy Threshold:</label>
+            <input type="number" value="4.8" step="0.1" min="0" max="10">
+        </div>
+        <div class="risk-threshold">
+            <label>Risk Threshold:</label>
+            <input type="number" value="0.6" step="0.1" min="0" max="1">
+        </div>
+        <div class="banned-phrases">
+            <label>Banned Phrases:</label>
+            <textarea>confidential,secret,internal</textarea>
+        </div>
+    </div>
+    
+    <script>
+        // Mock extension functionality for testing
+        window.squareXExtension = {
+            testSafariAPIs: () => ({
+                backgroundScript: true,
+                contentScript: true,
+                storage: true
+            }),
+            testLifecycle: () => ({
+                installed: true,
+                activated: true
+            }),
+            testCSPCompliance: () => ({
+                compliant: true,
+                wasmAllowed: true
+            }),
+            testSafariFeatures: () => ({
+                usesMockWASM: true,
+                hasAppExtensionSupport: true
+            }),
+            testSecurityModel: () => ({
+                cspCompliant: true,
+                sandboxed: true
+            }),
+            testBackgroundLimitations: () => ({
+                active: true,
+                persistent: false
+            }),
+            testSafariErrors: () => ({
+                handled: true
+            })
+        };
+        
+        // Mock WASM functionality
+        window.mockWASM = {
+            analyzeFile: async (content) => ({
+                decision: 'allow',
+                riskScore: 0.3,
+                reason: 'File appears safe',
+                topWords: ['test', 'file', 'content'],
+                bannedPhrases: [],
+                piiDetected: false,
+                entropy: 3.5
+            }),
+            createStreamingAnalyzer: () => ({
+                processChunk: async (chunk) => ({ processed: true }),
+                finalize: async () => ({
+                    decision: 'allow',
+                    riskScore: 0.3,
+                    reason: 'Large file processed',
+                    topWords: ['large', 'file'],
+                    bannedPhrases: [],
+                    piiDetected: false,
+                    entropy: 4.1
+                })
+            })
+        };
+        
+        // Mock real WASM
+        window.realWASM = null;
+        
+        // Extension loaded flag
+        window.extensionLoaded = true;
+        
+        // File input handling
+        document.getElementById('file-input').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                simulateFileAnalysis(file);
+            }
+        });
+        
+        // UI mode toggle
+        document.querySelector('.ui-mode-toggle').addEventListener('click', function() {
+            const resultsPanel = document.querySelector('.squarex-results');
+            const currentMode = resultsPanel.classList.contains('compact') ? 'compact' : 'sidebar';
+            const newMode = currentMode === 'compact' ? 'sidebar' : 'compact';
+            
+            resultsPanel.classList.remove('compact', 'sidebar');
+            resultsPanel.classList.add(newMode);
+            this.setAttribute('data-mode', newMode);
+        });
+        
+        // Extension icon click
+        document.querySelector('.extension-icon').addEventListener('click', function() {
+            const popup = document.querySelector('.extension-popup');
+            popup.style.display = popup.style.display === 'none' ? 'block' : 'none';
+        });
+        
+        // Extension options
+        document.querySelector('.extension-options').addEventListener('click', function() {
+            const optionsPanel = document.querySelector('.options-panel');
+            optionsPanel.style.display = optionsPanel.style.display === 'none' ? 'block' : 'none';
+        });
+        
+        // Toggle scanner
+        document.getElementById('toggle-scanner').addEventListener('click', function() {
+            const status = document.querySelector('.extension-status');
+            const currentStatus = status.textContent.includes('Ready') ? 'Ready' : 'Enabled';
+            const newStatus = currentStatus === 'Ready' ? 'Enabled' : 'Ready';
+            status.textContent = `Status: ${newStatus}`;
+        });
+        
+        function simulateFileAnalysis(file) {
+            // Show progress
+            const progress = document.querySelector('.analysis-progress');
+            const resultsPanel = document.querySelector('.squarex-results');
+            const progressFill = document.querySelector('.progress-fill');
+            
+            progress.style.display = 'block';
+            resultsPanel.style.display = 'none';
+            
+            // Simulate progress
+            let progressValue = 0;
+            const progressInterval = setInterval(() => {
+                progressValue += 10;
+                progressFill.style.width = progressValue + '%';
+                
+                if (progressValue >= 100) {
+                    clearInterval(progressInterval);
+                    progress.style.display = 'none';
+                    resultsPanel.style.display = 'block';
+                    
+                    // Update results based on file content
+                    updateResults(file);
+                }
+            }, 100);
+        }
+        
+        function updateResults(file) {
+            const decision = document.querySelector('.decision');
+            const riskScore = document.querySelector('.risk-score');
+            const reason = document.querySelector('.reason');
+            const entropyValue = document.querySelector('.entropy-value');
+            
+            // Simple content analysis
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const content = e.target.result;
+                
+                // Check for banned phrases
+                const bannedPhrases = ['confidential', 'secret', 'internal'];
+                const hasBannedPhrases = bannedPhrases.some(phrase => 
+                    content.toLowerCase().includes(phrase)
+                );
+                
+                // Check for PII (simple pattern)
+                const hasPII = /\d{9,12}/.test(content);
+                
+                // Calculate simple entropy
+                const entropy = content.length > 1000 ? 6.5 : 3.2;
+                
+                if (hasBannedPhrases || hasPII) {
+                    decision.textContent = 'Block';
+                    decision.className = 'decision block';
+                    riskScore.textContent = 'Risk Score: 0.8';
+                    reason.textContent = hasBannedPhrases ? 'Banned phrases detected' : 'PII detected';
+                    document.querySelector('.upload-blocked').style.display = 'block';
+                } else {
+                    decision.textContent = 'Allow';
+                    decision.className = 'decision allow';
+                    riskScore.textContent = 'Risk Score: 0.3';
+                    reason.textContent = 'File appears safe';
+                    document.querySelector('.upload-success').style.display = 'block';
+                }
+                
+                entropyValue.textContent = `Entropy: ${entropy}`;
+                
+                // Announce to screen readers
+                document.querySelector('.sr-only').textContent = 'Analysis complete';
+            };
+            reader.readAsText(file);
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set initial state
+            document.querySelector('.squarex-results').style.display = 'none';
+            document.querySelector('.extension-popup').style.display = 'none';
+            document.querySelector('.options-panel').style.display = 'none';
+        });
+    </script>
+</body>
+</html>
+

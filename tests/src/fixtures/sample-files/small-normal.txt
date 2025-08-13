@@ -1,0 +1,11 @@
+This is a normal text file for testing purposes.
+
+It contains regular human-readable content that should be allowed by the file scanner.
+
+The content includes:
+- Regular sentences
+- Common words
+- Normal formatting
+- No suspicious patterns
+
+This file should pass all security checks and be marked as safe for upload.

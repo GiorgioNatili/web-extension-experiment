@@ -20,11 +20,12 @@
     "install:browsers": "playwright install"
   },
   "dependencies": {
+    "playwright": "^1.54.2",
     "shared": "file:../shared",
     "wasm": "file:../wasm"
   },
   "devDependencies": {
-    "@playwright/test": "^1.40.0",
+    "@playwright/test": "^1.54.2",
     "@types/jest": "^29.0.0",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@typescript-eslint/parser": "^6.0.0",

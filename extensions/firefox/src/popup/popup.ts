@@ -1,5 +1,4 @@
 // Firefox popup script
-declare const browser: any;
 
 document.addEventListener('DOMContentLoaded', async () => {
   const toggleBtn = document.getElementById('toggleBtn') as HTMLButtonElement;

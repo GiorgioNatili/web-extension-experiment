@@ -1,0 +1,19 @@
+Customer Information Report
+
+Customer ID: 123456789
+Social Security Number: 123-45-6789
+Phone Number: 555-123-4567
+Credit Card: 4111-1111-1111-1111
+Date of Birth: 01/15/1985
+
+Address Information:
+123 Main Street
+Anytown, ST 12345
+
+This file contains personally identifiable information including:
+- Social Security Numbers
+- Credit Card Numbers
+- Phone Numbers
+- Addresses
+
+This should be detected as containing PII and blocked by the security scanner.

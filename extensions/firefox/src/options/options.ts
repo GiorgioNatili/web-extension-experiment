@@ -1,5 +1,4 @@
 // Firefox options script
-declare const browser: any;
 
 document.addEventListener('DOMContentLoaded', async () => {
   const saveBtn = document.getElementById('saveBtn') as HTMLButtonElement;

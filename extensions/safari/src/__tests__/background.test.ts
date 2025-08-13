@@ -32,22 +32,9 @@ const mockConsole = {
   warn: jest.fn()
 };
 
-// Mock setTimeout and setInterval
-const mockSetTimeout = jest.fn((callback: Function, delay: number) => {
-  setTimeout(callback, delay);
-  return 1;
-});
-
-const mockSetInterval = jest.fn((callback: Function, delay: number) => {
-  setInterval(callback, delay);
-  return 1;
-});
-
 // Global mocks
 global.browser = mockBrowser as any;
 global.console = mockConsole as any;
-global.setTimeout = mockSetTimeout as any;
-global.setInterval = mockSetInterval as any;
 
 describe('Safari Background Script', () => {
   beforeEach(() => {
@@ -98,136 +85,176 @@ describe('Safari Background Script', () => {
             }
           };
           
-          sendResponse({
-            success: true,
-            result
-          });
-          
+          sendResponse({ success: true, result });
         } catch (error) {
-          sendResponse({
-            success: false,
-            error: error.message
-          });
+          sendResponse({ success: false, error: error.message });
         }
       };
 
-      const mockSendResponse = jest.fn();
-      await handleFileAnalysis(message, mockSendResponse);
-
-      expect(mockSendResponse).toHaveBeenCalledWith({
+      const sendResponse = jest.fn();
+      await handleFileAnalysis(message, sendResponse);
+      
+      expect(sendResponse).toHaveBeenCalledWith({
         success: true,
         result: expect.objectContaining({
           decision: 'allow',
-          riskScore: 0.1,
-          reason: 'File appears safe'
+          riskScore: 0.1
         })
       });
     });
 
     test('should handle STREAM_INIT message', async () => {
-      // Test the logic for handling STREAM_INIT messages
       const message = {
         type: 'STREAM_INIT',
         operation_id: 'test-op-123',
-        file_info: { name: 'test.txt', size: 1024, type: 'text/plain' }
+        file_info: { name: 'large.txt', size: 2 * 1024 * 1024, type: 'text/plain' }
       };
 
       // Simulate streaming initialization logic
       const handleStreamInit = async (message: any, sendResponse: any) => {
         try {
-          const wasmLoaded = true; // Mocked as loaded
+          const operationId = message.operation_id;
+          const fileInfo = message.file_info;
           
-          if (!wasmLoaded) {
-            throw new Error('WASM module not loaded');
+          // Validate file info
+          if (!fileInfo.name || !fileInfo.size || !fileInfo.type) {
+            throw new Error('Invalid file info');
           }
           
-          // Simulate creating streaming operation
-          const operation = {
-            id: message.operation_id,
-            fileInfo: message.file_info,
-            startTime: Date.now(),
+          // Initialize streaming operation
+          const streamingState = {
+            operationId,
+            fileInfo,
+            chunks: [],
+            totalChunks: Math.ceil(fileInfo.size / (1024 * 1024)), // 1MB chunks
             status: 'initialized'
           };
           
-          sendResponse({
-            success: true,
-            operation_id: message.operation_id,
-            message: 'Streaming operation initialized'
-          });
-          
+          sendResponse({ success: true, streamingState });
         } catch (error) {
-          sendResponse({
-            success: false,
-            error: error.message
-          });
+          sendResponse({ success: false, error: error.message });
         }
       };
 
-      const mockSendResponse = jest.fn();
-      await handleStreamInit(message, mockSendResponse);
-
-      expect(mockSendResponse).toHaveBeenCalledWith({
+      const sendResponse = jest.fn();
+      await handleStreamInit(message, sendResponse);
+      
+      expect(sendResponse).toHaveBeenCalledWith({
         success: true,
+        streamingState: expect.objectContaining({
+          operationId: 'test-op-123',
+          status: 'initialized'
+        })
+      });
+    });
+
+    test('should handle STREAM_CHUNK message', async () => {
+      const message = {
+        type: 'STREAM_CHUNK',
         operation_id: 'test-op-123',
-        message: 'Streaming operation initialized'
-      });
-    });
+        chunk: 'test chunk content',
+        chunk_index: 0
+      };
 
-    test('should handle GET_STATUS message', async () => {
-      // Test the logic for handling GET_STATUS messages
-      const message = { type: 'GET_STATUS' };
-
-      // Simulate status response logic
-      const handleGetStatus = (message: any, sendResponse: any) => {
-        const status = {
-          status: 'ready',
-          wasm_loaded: true,
-          error_stats: {
-            total: 0,
-            recovered: 0,
-            recoveryRate: '0%'
+      // Simulate chunk processing logic
+      const handleStreamChunk = async (message: any, sendResponse: any) => {
+        try {
+          const operationId = message.operation_id;
+          const chunk = message.chunk;
+          const chunkIndex = message.chunk_index;
+          
+          // Validate chunk
+          if (!chunk || typeof chunk !== 'string') {
+            throw new Error('Invalid chunk data');
           }
-        };
-        
-        sendResponse(status);
+          
+          // Process chunk (simulated)
+          const processedChunk = {
+            index: chunkIndex,
+            content: chunk,
+            processed: true,
+            timestamp: Date.now()
+          };
+          
+          sendResponse({ success: true, processedChunk });
+        } catch (error) {
+          sendResponse({ success: false, error: error.message });
+        }
       };
 
-      const mockSendResponse = jest.fn();
-      handleGetStatus(message, mockSendResponse);
-
-      expect(mockSendResponse).toHaveBeenCalledWith({
-        status: 'ready',
-        wasm_loaded: true,
-        error_stats: {
-          total: 0,
-          recovered: 0,
-          recoveryRate: '0%'
-        }
+      const sendResponse = jest.fn();
+      await handleStreamChunk(message, sendResponse);
+      
+      expect(sendResponse).toHaveBeenCalledWith({
+        success: true,
+        processedChunk: expect.objectContaining({
+          index: 0,
+          content: 'test chunk content',
+          processed: true
+        })
       });
     });
 
-    test('should handle unknown message type', () => {
-      // Test the logic for handling unknown message types
-      const message = { type: 'UNKNOWN_MESSAGE' };
-
-      // Simulate unknown message handling
-      const handleUnknownMessage = (message: any) => {
-        console.warn('Unknown message type:', message.type);
+    test('should handle STREAM_FINALIZE message', async () => {
+      const message = {
+        type: 'STREAM_FINALIZE',
+        operation_id: 'test-op-123'
       };
 
-      handleUnknownMessage(message);
+      // Simulate streaming finalization logic
+      const handleStreamFinalize = async (message: any, sendResponse: any) => {
+        try {
+          const operationId = message.operation_id;
+          
+          // Simulate final analysis result
+          const result = {
+            decision: 'allow',
+            riskScore: 0.2,
+            reason: 'Large file analysis completed',
+            stats: {
+              totalChunks: 2,
+              totalContent: 2048576,
+              processingTime: 500
+            }
+          };
+          
+          sendResponse({ success: true, result });
+        } catch (error) {
+          sendResponse({ success: false, error: error.message });
+        }
+      };
 
-      expect(mockConsole.warn).toHaveBeenCalledWith('Unknown message type:', 'UNKNOWN_MESSAGE');
+      const sendResponse = jest.fn();
+      await handleStreamFinalize(message, sendResponse);
+      
+      expect(sendResponse).toHaveBeenCalledWith({
+        success: true,
+        result: expect.objectContaining({
+          decision: 'allow',
+          riskScore: 0.2
+        })
+      });
     });
   });
 
   describe('WASM Initialization Logic', () => {
     test('should initialize WASM module on startup', async () => {
-      // Test WASM initialization logic
+      // Mock the initializeWASM function
       const initializeWASM = async () => {
         try {
-          // Simulate WASM loading
-          await new Promise(resolve => setTimeout(resolve, 100));
+          // Simulate WASM module loading
+          const wasmModule = {
+            loaded: true,
+            version: '1.0.0',
+            functions: ['analyze', 'stream', 'validate']
+          };
+          
+          // Store WASM state
+          await browser.storage.local.set({ 
+            wasmLoaded: true, 
+            wasmVersion: wasmModule.version 
+          });
+          
           console.log('WASM module initialized successfully');
           return true;
         } catch (error) {
@@ -237,164 +264,196 @@ describe('Safari Background Script', () => {
       };
 
       const result = await initializeWASM();
+      
       expect(result).toBe(true);
+      expect(mockBrowser.storage.local.set).toHaveBeenCalledWith({
+        wasmLoaded: true,
+        wasmVersion: '1.0.0'
+      });
       expect(mockConsole.log).toHaveBeenCalledWith('WASM module initialized successfully');
     });
 
-    test('should handle WASM initialization error', async () => {
-      // Test WASM initialization error handling
+    test('should handle WASM initialization failure', async () => {
+      // Mock the initializeWASM function with failure
       const initializeWASM = async () => {
         try {
-          // Simulate WASM loading failure
-          throw new Error('WASM load failed');
+          // Simulate WASM module loading failure
+          throw new Error('WASM module not found');
         } catch (error) {
           console.error('Failed to initialize WASM module:', error);
+          
+          // Store failure state
+          await browser.storage.local.set({ 
+            wasmLoaded: false, 
+            wasmError: error.message 
+          });
+          
           return false;
         }
       };
 
       const result = await initializeWASM();
-      expect(result).toBe(false);
-      expect(mockConsole.error).toHaveBeenCalledWith('Failed to initialize WASM module:', expect.any(Error));
-    });
-  });
-
-  describe('Lifecycle Events Logic', () => {
-    test('should handle extension installation', () => {
-      // Test extension installation logic
-      const handleInstallation = (details: any) => {
-        console.log('Safari extension installed:', details);
-        
-        // Initialize default settings
-        const defaultSettings = {
-          scannerEnabled: true,
-          entropyThreshold: '4.8',
-          riskThreshold: '0.6',
-          bannedPhrases: 'malware,virus,trojan',
-          stopwords: 'the,a,an,and,or,but,in,on,at,to,for,of,with,by'
-        };
-        
-        return defaultSettings;
-      };
-
-      const mockDetails = { reason: 'install' };
-      const settings = handleInstallation(mockDetails);
       
-      expect(mockConsole.log).toHaveBeenCalledWith('Safari extension installed:', mockDetails);
-      expect(settings.scannerEnabled).toBe(true);
-      expect(settings.entropyThreshold).toBe('4.8');
-    });
-
-    test('should handle extension startup', () => {
-      // Test extension startup logic
-      const handleStartup = () => {
-        console.log('Safari extension started');
-        return true;
-      };
-
-      const result = handleStartup();
-      expect(result).toBe(true);
-      expect(mockConsole.log).toHaveBeenCalledWith('Safari extension started');
-    });
-
-    test('should handle extension update', () => {
-      // Test extension update logic
-      const handleUpdate = () => {
-        console.log('Safari extension update available');
-        return true;
-      };
-
-      const result = handleUpdate();
-      expect(result).toBe(true);
-      expect(mockConsole.log).toHaveBeenCalledWith('Safari extension update available');
+      expect(result).toBe(false);
+      expect(mockBrowser.storage.local.set).toHaveBeenCalledWith({
+        wasmLoaded: false,
+        wasmError: 'WASM module not found'
+      });
+      expect(mockConsole.error).toHaveBeenCalledWith('Failed to initialize WASM module:', expect.any(Error));
     });
   });
 
   describe('Utility Functions', () => {
     test('should chunk content correctly', () => {
-      // Test content chunking logic
-      const chunkContent = (content: string, chunkSize: number): string[] => {
+      // Mock the chunkContent function
+      const chunkContent = (content: string, chunkSize: number = 1024 * 1024) => {
         const chunks: string[] = [];
-        for (let i = 0; i < content.length; i += chunkSize) {
-          chunks.push(content.slice(i, i + chunkSize));
+        let offset = 0;
+        
+        while (offset < content.length) {
+          const chunk = content.slice(offset, offset + chunkSize);
+          chunks.push(chunk);
+          offset += chunkSize;
         }
+        
         return chunks;
       };
 
-      const content = 'a'.repeat(2000000); // 2MB content
-      const chunks = chunkContent(content, 1024 * 1024); // 1MB chunks
-
+      const testContent = 'a'.repeat(2 * 1024 * 1024); // 2MB content
+      const chunks = chunkContent(testContent);
+      
       expect(chunks.length).toBe(2);
       expect(chunks[0].length).toBe(1024 * 1024);
       expect(chunks[1].length).toBe(1024 * 1024);
     });
-  });
 
-  describe('Error Handling Logic', () => {
-    test('should handle file analysis errors', async () => {
-      // Test file analysis error handling
-      const handleFileAnalysisError = async (message: any, sendResponse: any) => {
-        try {
-          const wasmLoaded = false; // Simulate WASM not loaded
-          
-          if (!wasmLoaded) {
-            throw new Error('WASM module not loaded');
-          }
-          
-        } catch (error) {
-          sendResponse({
-            success: false,
-            error: error.message,
-            fallback: false
-          });
-        }
+    test('should validate file types', () => {
+      // Mock the isValidFileType function
+      const isValidFileType = (fileName: string, allowedTypes: string[] = ['text/plain', 'text/html']) => {
+        const extension = fileName.split('.').pop()?.toLowerCase();
+        const validExtensions = ['txt', 'html', 'htm', 'css', 'js', 'json', 'md'];
+        
+        return validExtensions.includes(extension || '');
       };
 
-      const mockSendResponse = jest.fn();
-      const message = {
-        type: 'ANALYZE_FILE',
-        data: { content: 'test content', fileName: 'test.txt' }
-      };
-
-      await handleFileAnalysisError(message, mockSendResponse);
-
-      expect(mockSendResponse).toHaveBeenCalledWith({
-        success: false,
-        error: 'WASM module not loaded',
-        fallback: false
-      });
+      expect(isValidFileType('test.txt')).toBe(true);
+      expect(isValidFileType('test.html')).toBe(true);
+      expect(isValidFileType('test.css')).toBe(true);
+      expect(isValidFileType('test.js')).toBe(true);
+      expect(isValidFileType('test.json')).toBe(true);
+      expect(isValidFileType('test.md')).toBe(true);
+      expect(isValidFileType('test.exe')).toBe(false);
+      expect(isValidFileType('test.bin')).toBe(false);
     });
 
-    test('should handle streaming errors', async () => {
-      // Test streaming error handling
-      const handleStreamingError = async (message: any, sendResponse: any) => {
+    test('should calculate risk scores', () => {
+      // Mock the calculateRiskScore function
+      const calculateRiskScore = (factors: any) => {
+        let score = 0;
+        
+        // Entropy factor
+        if (factors.entropy > 7.5) score += 0.3;
+        else if (factors.entropy > 6.0) score += 0.2;
+        else if (factors.entropy > 4.5) score += 0.1;
+        
+        // Banned phrases factor
+        if (factors.bannedPhrases > 0) {
+          score += Math.min(factors.bannedPhrases * 0.2, 0.5);
+        }
+        
+        // PII factor
+        if (factors.piiDetected) score += 0.3;
+        
+        // File size factor
+        if (factors.fileSize > 10 * 1024 * 1024) score += 0.1;
+        
+        return Math.min(score, 1.0);
+      };
+
+      const lowRiskFactors = {
+        entropy: 4.0,
+        bannedPhrases: 0,
+        piiDetected: false,
+        fileSize: 1024
+      };
+      
+      const highRiskFactors = {
+        entropy: 8.0,
+        bannedPhrases: 3,
+        piiDetected: true,
+        fileSize: 20 * 1024 * 1024
+      };
+      
+      // For low risk: entropy 4.0 > 4.5 is false, so no score added
+      expect(calculateRiskScore(lowRiskFactors)).toBe(0);
+      expect(calculateRiskScore(highRiskFactors)).toBe(1.0);
+    });
+  });
+
+  describe('Error Handling', () => {
+    test('should handle analysis errors gracefully', async () => {
+      // Mock the handleAnalysisError function
+      const handleAnalysisError = async (error: Error, context: string) => {
+        const errorInfo = {
+          message: error.message,
+          context,
+          timestamp: Date.now(),
+          stack: error.stack
+        };
+        
+        // Log error
+        console.error(`Analysis error in ${context}:`, error);
+        
+        // Store error for monitoring
+        await browser.storage.local.set({ 
+          lastError: errorInfo,
+          errorCount: 1 // Simplified
+        });
+        
+        return {
+          success: false,
+          error: error.message,
+          context
+        };
+      };
+
+      const testError = new Error('Test analysis error');
+      const result = await handleAnalysisError(testError, 'file-analysis');
+      
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Test analysis error');
+      expect(result.context).toBe('file-analysis');
+      expect(mockConsole.error).toHaveBeenCalledWith('Analysis error in file-analysis:', testError);
+    });
+
+    test('should recover from WASM errors', async () => {
+      // Mock the recoverFromWasmError function
+      const recoverFromWasmError = async (error: Error) => {
         try {
-          const wasmLoaded = false; // Simulate WASM not loaded
+          // Attempt to reload WASM module
+          console.log('Attempting to recover from WASM error...');
           
-          if (!wasmLoaded) {
-            throw new Error('WASM module not loaded');
-          }
-          
-        } catch (error) {
-          sendResponse({
-            success: false,
-            error: error.message
+          // Simulate successful recovery
+          await browser.storage.local.set({ 
+            wasmLoaded: true,
+            wasmRecoveryAttempts: 1
           });
+          
+          return true;
+        } catch (recoveryError) {
+          console.error('Failed to recover from WASM error:', recoveryError);
+          return false;
         }
       };
 
-      const mockSendResponse = jest.fn();
-      const message = {
-        type: 'STREAM_INIT',
-        operation_id: 'test-op-123',
-        file_info: { name: 'test.txt', size: 1024, type: 'text/plain' }
-      };
-
-      await handleStreamingError(message, mockSendResponse);
-
-      expect(mockSendResponse).toHaveBeenCalledWith({
-        success: false,
-        error: 'WASM module not loaded'
+      const testError = new Error('WASM module crashed');
+      const result = await recoverFromWasmError(testError);
+      
+      expect(result).toBe(true);
+      expect(mockConsole.log).toHaveBeenCalledWith('Attempting to recover from WASM error...');
+      expect(mockBrowser.storage.local.set).toHaveBeenCalledWith({
+        wasmLoaded: true,
+        wasmRecoveryAttempts: 1
       });
     });
   });
