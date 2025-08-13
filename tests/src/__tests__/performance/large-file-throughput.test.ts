@@ -115,7 +115,23 @@ describe('Performance: large file throughput and memory usage', () => {
     // eslint-disable-next-line no-console
     console.log('  Heap delta (read): ', formatBytes(Math.max(0, endMemRead - startMemRead)));
 
-    // No strict SLA assertions yet; request product SLA to turn on thresholds
+    // Optional SLA enforcement (defaults chosen conservatively; override via env)
+    const enforce = process.env.ENFORCE_PERF === '1' || !!process.env.CI;
+    const minWriteMBps = parseFloat(process.env.THROUGHPUT_WRITE_MBPS_MIN || '20');
+    const minReadMBps = parseFloat(process.env.THROUGHPUT_READ_MBPS_MIN || '30');
+    const maxWriteHeapMB = parseFloat(process.env.HEAP_WRITE_MAX_MB || '128');
+    const maxReadHeapMB = parseFloat(process.env.HEAP_READ_MAX_MB || '96');
+
+    if (enforce) {
+      expect(writeThroughputMBps).toBeGreaterThanOrEqual(minWriteMBps);
+      expect(readThroughputMBps).toBeGreaterThanOrEqual(minReadMBps);
+      const writeHeapMB = (Math.max(0, endMemWrite - startMemWrite)) / (1024 * 1024);
+      const readHeapMB = (Math.max(0, endMemRead - startMemRead)) / (1024 * 1024);
+      expect(writeHeapMB).toBeLessThanOrEqual(maxWriteHeapMB);
+      expect(readHeapMB).toBeLessThanOrEqual(maxReadHeapMB);
+    }
+
+    // Always validate IO correctness
     expect(readBytes).toBe(targetBytes);
     expect(fs.existsSync(filePath)).toBe(true);
   }, 120000);

@@ -195,7 +195,19 @@ SIZE_MB=200 npm run test:performance
 
 The test logs a report with write/read throughput and heap deltas. No strict SLAs are enforced yet.
 
-Feedback requested: What is the target throughput SLA (MB/s) and acceptable memory delta for CI? Once provided, we will codify thresholds in the test.
+Default CI thresholds (can be overridden via env):
+
+```
+# Enforce thresholds (auto-enabled in CI)
+ENFORCE_PERF=1 \
+THROUGHPUT_WRITE_MBPS_MIN=20 \
+THROUGHPUT_READ_MBPS_MIN=30 \
+HEAP_WRITE_MAX_MB=128 \
+HEAP_READ_MAX_MB=96 \
+npm run test:performance
+```
+
+You can tune these values per environment if needed.
 
 ### Browser Compatibility Testing
 
