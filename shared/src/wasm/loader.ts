@@ -3,24 +3,26 @@ import { WASMModule, WASMLoader } from './interface';
 export class WASMLoaderImpl implements WASMLoader {
   private module: WASMModule | null = null;
   private loading = false;
+  private loadPromise: Promise<WASMModule> | null = null;
 
   async load(): Promise<WASMModule> {
     if (this.module) {
       return this.module;
     }
 
-    if (this.loading) {
-      throw new Error('WASM module is already loading');
+    if (this.loadPromise) {
+      return this.loadPromise;
     }
 
     this.loading = true;
+    this.loadPromise = this._loadModule();
+    
     try {
-      // This would be implemented to load the actual WASM module
-      // For now, we'll create a mock implementation
-      this.module = this.createMockModule();
+      this.module = await this.loadPromise;
       return this.module;
     } finally {
       this.loading = false;
+      this.loadPromise = null;
     }
   }
 
@@ -28,21 +30,147 @@ export class WASMLoaderImpl implements WASMLoader {
     return this.module !== null;
   }
 
-  private createMockModule(): WASMModule {
-    return {
-      analyzeFile: async (content: string) => ({
-        topWords: [],
-        bannedPhrases: [],
-        piiPatterns: [],
-        entropy: 0,
-        isObfuscated: false,
-        decision: 'allow',
-        reason: 'Mock implementation'
-      }),
-      calculateEntropy: (text: string) => 0,
-      findBannedPhrases: async (text: string) => [],
-      detectPIIPatterns: async (text: string) => [],
-      getTopWords: async (text: string, count: number) => []
-    };
+  private async _loadModule(): Promise<WASMModule> {
+    try {
+      console.log('[WASM] Starting module load...');
+      const envSummary = {
+        isChromeDefined: typeof chrome !== 'undefined',
+        hasChromeRuntime: typeof chrome !== 'undefined' && !!chrome.runtime,
+        isServiceWorker: typeof self !== 'undefined' && (self as any).registration ? true : false,
+        locationHref: typeof location !== 'undefined' ? location.href : 'n/a',
+      };
+      console.log('[WASM] Environment summary:', envSummary);
+      
+      // Detect browser extension environment
+      const isExtension = typeof chrome !== 'undefined' && chrome.runtime;
+      
+      // wasmNs is the ESM namespace from wasm-pack glue (exports class WasmModule and default init)
+      let wasmNs: any;
+      if (isExtension) {
+        const wasmJsUrl = chrome.runtime.getURL('wasm.js');
+        const wasmBinaryUrl = chrome.runtime.getURL('wasm_bg.wasm');
+        console.log('[WASM] Extension environment URLs:', { wasmJsUrl, wasmBinaryUrl });
+
+        try {
+          console.log('[WASM] Dynamic importing glue via URL import(...)');
+          // Import the ESM glue directly; CSP-safe and works in MV3 service worker
+          wasmNs = await import(/* webpackIgnore: true */ wasmJsUrl);
+        } catch (e) {
+          console.error('[WASM] Dynamic import of glue failed:', e);
+          throw e;
+        }
+
+        // Initialize with explicit wasm URL so glue fetches the right file
+        console.log('[WASM] Initializing wasm-bindgen glue with wasm URL...');
+        await wasmNs.default(wasmBinaryUrl);
+      } else {
+        console.log('[WASM] Non-extension environment detected. Dynamic importing local glue...');
+        wasmNs = await import('../../../wasm/pkg/wasm.js');
+        await wasmNs.default();
+      }
+
+      console.log('[WASM] Module initialized successfully');
+
+      // Internal helper to create an analyzer handle that keeps its module instance
+      const createAnalyzerHandle = (config?: any) => {
+        const moduleInstance = new wasmNs.WasmModule();
+        const analyzer = config
+          ? moduleInstance.init_streaming_with_config(config)
+          : moduleInstance.init_streaming();
+        return { __module: moduleInstance, __analyzer: analyzer };
+      };
+
+      // Return a wrapper that implements our WASMModule interface
+      return {
+        analyzeFile: async (content: string) => {
+          const handle = createAnalyzerHandle();
+          handle.__module.process_chunk(handle.__analyzer, content);
+          const result = handle.__module.finalize_streaming(handle.__analyzer);
+          const stats = handle.__module.get_streaming_stats(handle.__analyzer);
+
+          return {
+            topWords: result.top_words || [],
+            bannedPhrases: result.banned_phrases || [],
+            piiPatterns: result.pii_patterns || [],
+            entropy: result.entropy || 0,
+            isObfuscated: result.is_obfuscated || false,
+            decision: result.decision || 'allow',
+            reason: result.reason || 'Analysis complete',
+            riskScore: result.risk_score || 0,
+            stats: {
+              processingTime: stats?.total_time || 0,
+              memoryUsage: stats?.peak_memory || 0,
+              throughput: stats?.bytes_per_second || 0
+            }
+          };
+        },
+
+        calculateEntropy: (text: string) => {
+          const moduleInstance = new wasmNs.WasmModule();
+          return moduleInstance.calculate_entropy(text);
+        },
+
+        findBannedPhrases: async (text: string) => {
+          const moduleInstance = new wasmNs.WasmModule();
+          return moduleInstance.find_banned_phrases(text);
+        },
+
+        detectPIIPatterns: async (text: string) => {
+          const moduleInstance = new wasmNs.WasmModule();
+          return moduleInstance.detect_pii_patterns(text);
+        },
+
+        getTopWords: async (text: string, count: number) => {
+          const moduleInstance = new wasmNs.WasmModule();
+          return moduleInstance.get_top_words(text, count);
+        },
+
+        // Streaming interface
+        createStreamingAnalyzer: (config?: any) => {
+          return createAnalyzerHandle(config);
+        },
+
+        processChunk: (handle: any, chunk: string) => {
+          if (!handle || !handle.__module || !handle.__analyzer) {
+            throw new Error('Invalid analyzer handle');
+          }
+          return handle.__module.process_chunk(handle.__analyzer, chunk);
+        },
+
+        finalizeStreaming: (handle: any) => {
+          if (!handle || !handle.__module || !handle.__analyzer) {
+            throw new Error('Invalid analyzer handle');
+          }
+          const raw = handle.__module.finalize_streaming(handle.__analyzer);
+          // Normalize field names to camelCase expected by background/content code
+          return {
+            topWords: raw?.top_words ?? raw?.topWords ?? [],
+            bannedPhrases: raw?.banned_phrases ?? raw?.bannedPhrases ?? [],
+            piiPatterns: raw?.pii_patterns ?? raw?.piiPatterns ?? [],
+            entropy: raw?.entropy ?? 0,
+            isObfuscated: raw?.is_obfuscated ?? raw?.isObfuscated ?? false,
+            decision: raw?.decision ?? 'allow',
+            reason: raw?.reason ?? (Array.isArray(raw?.reasons) ? raw.reasons[0] : 'Analysis complete'),
+            riskScore: raw?.risk_score ?? raw?.riskScore ?? 0
+          };
+        },
+
+        getStreamingStats: (handle: any) => {
+          if (!handle || !handle.__module || !handle.__analyzer) {
+            throw new Error('Invalid analyzer handle');
+          }
+          return handle.__module.get_streaming_stats(handle.__analyzer);
+        }
+      };
+      
+    } catch (error) {
+      const err = error as Error;
+      console.error('[WASM] Module load failed with error:', {
+        name: err.name,
+        message: err.message,
+        stack: err.stack
+      });
+      throw new Error(`WASM module loading failed: ${err.message}`);
+    }
   }
 }

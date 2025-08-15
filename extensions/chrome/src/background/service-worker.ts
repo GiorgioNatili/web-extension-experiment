@@ -15,14 +15,15 @@ const streamingOperations = new Map<string, any>();
 // Initialize WASM module on startup
 async function initializeWASM() {
   try {
+    console.log('[BG] initializeWASM: starting');
     await chromeWASMLoader.loadWASMModule();
-    console.log('WASM module initialized successfully');
+    console.log('[BG] initializeWASM: success');
   } catch (error) {
-    console.error('Failed to initialize WASM module:', error);
+    console.error('[BG] initializeWASM: failed', error);
     // Handle WASM initialization error
     const recovery = await chromeErrorHandler.handleError(error as Error, { operation: 'wasm_init' });
     if (!recovery.recovered) {
-      console.error('WASM initialization failed and could not be recovered');
+      console.error('[BG] initializeWASM: unrecoverable');
     }
   }
 }
@@ -55,7 +56,8 @@ chrome.runtime.onMessage.addListener((message: any, sender, sendResponse) => {
       sendResponse({ 
         status: 'ready',
         wasm_loaded: chromeWASMLoader.isModuleLoaded(),
-        error_stats: chromeErrorHandler.getErrorStats()
+        error_stats: chromeErrorHandler.getErrorStats(),
+        module_status: chromeWASMLoader.getModuleStatus()
       });
       break;
       
@@ -65,6 +67,10 @@ chrome.runtime.onMessage.addListener((message: any, sender, sendResponse) => {
         error_stats: chromeErrorHandler.getErrorStats()
       });
       break;
+      
+    case 'TEST_WASM_LOADING':
+      handleWasmTest(sendResponse);
+      return true; // Keep message channel open for async response
       
     default:
       console.warn('Unknown message type:', message.type);
@@ -94,7 +100,7 @@ async function handleFileAnalysis(message: any, sendResponse: (response: any) =>
   } catch (error) {
     console.error('Analysis failed:', error);
     
-    // Handle error with recovery
+    // Handle real errors with recovery
     const recovery = await chromeErrorHandler.handleError(error as Error, {
       operation: 'file_analysis',
       context: { fileName: message.data.fileName }
@@ -105,7 +111,7 @@ async function handleFileAnalysis(message: any, sendResponse: (response: any) =>
     } else {
       sendResponse({ 
         success: false, 
-        error: MESSAGES.ANALYSIS_FAILED 
+        error: (error as Error).message || MESSAGES.ANALYSIS_FAILED 
       });
     }
   }
@@ -411,6 +417,54 @@ function calculateEstimatedTime(operation: any): number | undefined {
   const remainingChunks = Math.ceil(operation.file.size / CHUNK_SIZE) - operation.stats.total_chunks;
   
   return Math.round(avgTimePerChunk * remainingChunks);
+}
+
+/**
+ * Handle WASM loading test
+ */
+async function handleWasmTest(sendResponse: (response: any) => void) {
+  try {
+    console.log('Testing WASM loading...');
+    
+    // Check current WASM status
+    const wasmLoaded = chromeWASMLoader.isModuleLoaded();
+    const moduleStatus = chromeWASMLoader.getModuleStatus();
+    
+    console.log('Current WASM status:', { wasmLoaded, moduleStatus });
+    
+    // If not loaded, try to load it
+    if (!wasmLoaded) {
+      console.log('WASM not loaded, attempting to load...');
+      await chromeWASMLoader.loadWASMModule();
+    }
+    
+    // Test WASM functionality
+    let testResult = 'WASM module loaded successfully';
+    try {
+      const analyzer = chromeWASMLoader.createStreamingAnalyzer();
+      analyzer.processChunk('test content');
+      const result = analyzer.finalize();
+      testResult = `WASM analysis test passed: ${JSON.stringify(result).substring(0, 100)}...`;
+    } catch (error) {
+      testResult = `WASM analysis test failed: ${(error as Error).message}`;
+    }
+    
+    sendResponse({
+      success: true,
+      wasmLoaded: chromeWASMLoader.isModuleLoaded(),
+      moduleStatus: chromeWASMLoader.getModuleStatus(),
+      testResult
+    });
+    
+  } catch (error) {
+    console.error('WASM test failed:', error);
+    sendResponse({
+      success: false,
+      error: (error as Error).message,
+      wasmLoaded: chromeWASMLoader.isModuleLoaded(),
+      moduleStatus: chromeWASMLoader.getModuleStatus()
+    });
+  }
 }
 
 /**

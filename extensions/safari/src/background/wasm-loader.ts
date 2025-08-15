@@ -2,9 +2,9 @@ import { CONFIG } from 'shared';
 import { WASMLoaderImpl } from 'shared';
 
 /**
- * Firefox-specific WASM loader for file analysis
+ * Safari-specific WASM loader for file analysis
  */
-export class FirefoxWASMLoader {
+export class SafariWASMLoader {
   private wasmLoader: WASMLoaderImpl;
   private wasmModule: any = null;
   private isLoaded = false;
@@ -35,12 +35,12 @@ export class FirefoxWASMLoader {
    */
   private async _loadModule(): Promise<void> {
     try {
-      console.log('Loading WASM module for Firefox...');
+      console.log('Loading WASM module for Safari...');
       
       // Use the shared WASM loader
       this.wasmModule = await this.wasmLoader.load();
       this.isLoaded = true;
-      console.log('WASM module loaded successfully for Firefox');
+      console.log('WASM module loaded successfully for Safari');
       
     } catch (error) {
       console.error('Failed to load WASM module:', error);
@@ -57,47 +57,6 @@ export class FirefoxWASMLoader {
     }
 
     return new StreamingAnalyzerWrapper(this.wasmModule, config);
-  }
-
-  /**
-   * Analyze a single chunk
-   */
-  async analyzeChunk(chunk: string, analyzer: any): Promise<any> {
-    if (!this.isLoaded) {
-      throw new Error('WASM module not loaded');
-    }
-
-    try {
-      analyzer.processChunk(chunk);
-      return {
-        success: true,
-        chunk_size: chunk.length,
-        timestamp: Date.now()
-      };
-    } catch (error) {
-      console.error('Chunk analysis failed:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Finalize analysis and get results
-   */
-  async finalizeAnalysis(analyzer: any): Promise<any> {
-    if (!this.isLoaded) {
-      throw new Error('WASM module not loaded');
-    }
-
-    try {
-      const result = analyzer.finalize();
-      return {
-        success: true,
-        result
-      };
-    } catch (error) {
-      console.error('Analysis finalization failed:', error);
-      throw error;
-    }
   }
 
   /**
@@ -143,7 +102,7 @@ class StreamingAnalyzerWrapper {
     this.wasmModule = wasmModule;
     this.config = config;
     this.handle = this.wasmModule.createStreamingAnalyzer();
-    console.log('StreamingAnalyzerWrapper initialized with config:', config);
+    console.log('Safari StreamingAnalyzerWrapper initialized with config:', config);
   }
 
   processChunk(chunk: string): void {
@@ -185,4 +144,5 @@ class StreamingAnalyzerWrapper {
 /**
  * Global WASM loader instance
  */
-export const firefoxWASMLoader = new FirefoxWASMLoader();
+export const safariWASMLoader = new SafariWASMLoader();
+

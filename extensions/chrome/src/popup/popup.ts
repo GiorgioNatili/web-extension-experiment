@@ -4,6 +4,7 @@ console.log('SquareX File Scanner Popup loaded');
 
 // DOM elements
 let toggleButton: HTMLButtonElement | null = null;
+let testWasmButton: HTMLButtonElement | null = null;
 let statusElement: HTMLElement | null = null;
 let wasmStatusElement: HTMLElement | null = null;
 let errorStatsElement: HTMLElement | null = null;
@@ -14,6 +15,7 @@ async function initializePopup() {
   
   // Get DOM elements
   toggleButton = document.getElementById('toggleButton') as HTMLButtonElement;
+  testWasmButton = document.getElementById('testWasmButton') as HTMLButtonElement;
   statusElement = document.getElementById('status');
   wasmStatusElement = document.getElementById('wasmStatus');
   errorStatsElement = document.getElementById('errorStats');
@@ -27,9 +29,34 @@ async function initializePopup() {
     toggleButton.textContent = scannerEnabled ? 'Disable Scanner' : 'Enable Scanner';
     toggleButton.addEventListener('click', toggleScanner);
   }
+  if (testWasmButton) {
+    testWasmButton.addEventListener('click', triggerWasmTest);
+  }
   
   // Check extension status
   await updateStatus();
+}
+
+// Trigger background WASM loading test
+async function triggerWasmTest() {
+  try {
+    if (testWasmButton) {
+      testWasmButton.disabled = true;
+      testWasmButton.textContent = 'Testing...';
+    }
+    const response = await chrome.runtime.sendMessage({ type: 'TEST_WASM_LOADING' });
+    console.log('WASM test response:', response);
+    await updateStatus();
+    if (testWasmButton) {
+      testWasmButton.textContent = 'Test WASM';
+    }
+  } catch (error) {
+    console.error('Failed to run WASM test:', error);
+  } finally {
+    if (testWasmButton) {
+      testWasmButton.disabled = false;
+    }
+  }
 }
 
 // Toggle scanner on/off

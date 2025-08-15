@@ -27,7 +27,7 @@
   "options_page": "options.html",
   "web_accessible_resources": [
     {
-      "resources": ["wasm/*"],
+      "resources": ["wasm_bg.wasm", "wasm.js"],
       "matches": ["http://localhost:8080/*"]
     }
   ]

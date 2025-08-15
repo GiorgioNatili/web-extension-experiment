@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WASM Loading Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .status.success {
+            background-color: #d4edda;
+            border-left: 4px solid #28a745;
+        }
+        .status.error {
+            background-color: #f8d7da;
+            border-left: 4px solid #dc3545;
+        }
+        .status.info {
+            background-color: #e3f2fd;
+            border-left: 4px solid #007bff;
+        }
+        .btn {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .btn:hover {
+            background-color: #0056b3;
+        }
+        .log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 WASM Loading Test</h1>
+        
+        <div class="status info">
+            <h3>Test Purpose</h3>
+            <p>This page tests WASM loading in the Chrome extension service worker context.</p>
+        </div>
+        
+        <div id="status" class="status info">
+            Ready to test WASM loading...
+        </div>
+        
+        <div>
+            <button class="btn" onclick="testWasmLoading()">Test WASM Loading</button>
+            <button class="btn" onclick="clearLog()">Clear Log</button>
+        </div>
+        
+        <div id="log" class="log">
+            <div>Log will appear here...</div>
+        </div>
+        
+        <div id="results" class="status info" style="display: none;">
+            <h3>Test Results</h3>
+            <div id="results-content"></div>
+        </div>
+    </div>
+
+    <script>
+        const logElement = document.getElementById('log');
+        const statusElement = document.getElementById('status');
+        const resultsElement = document.getElementById('results');
+        const resultsContent = document.getElementById('results-content');
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.style.color = type === 'error' ? '#dc3545' : type === 'success' ? '#28a745' : '#007bff';
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            logElement.appendChild(logEntry);
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        function clearLog() {
+            logElement.innerHTML = '<div>Log cleared...</div>';
+        }
+
+        function updateStatus(message, type = 'info') {
+            statusElement.textContent = message;
+            statusElement.className = `status ${type}`;
+        }
+
+        async function testWasmLoading() {
+            log('Starting WASM loading test...');
+            updateStatus('Testing WASM loading...', 'info');
+            
+            try {
+                // Test if extension is available
+                if (typeof chrome === 'undefined' || !chrome.runtime) {
+                    throw new Error('Chrome extension API not available');
+                }
+                
+                log('Chrome extension API available');
+                
+                // Use content-script bridge via window.postMessage to reach background
+                const correlationId = `bridge_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+                const bridgePromise = new Promise((resolve, reject) => {
+                    const handler = (ev) => {
+                        const d = ev.data || {};
+                        if (d && d.source === 'squarex-extension' && d.correlationId === correlationId) {
+                            window.removeEventListener('message', handler);
+                            if (d.error) reject(new Error(d.error));
+                            else resolve(d.response);
+                        }
+                    };
+                    window.addEventListener('message', handler);
+                });
+                window.postMessage({
+                    source: 'squarex-test',
+                    correlationId,
+                    payload: { type: 'TEST_WASM_LOADING' }
+                }, '*');
+
+                const response = await bridgePromise;
+                log('Response received from service worker');
+                
+                if (response.success) {
+                    log('WASM loading test successful!', 'success');
+                    updateStatus('WASM loading test passed!', 'success');
+                    
+                    // Show detailed results
+                    resultsElement.style.display = 'block';
+                    resultsContent.innerHTML = `
+                        <p><strong>WASM Module:</strong> ${response.wasmLoaded ? 'Loaded' : 'Not Loaded'}</p>
+                        <p><strong>Module Status:</strong> ${response.moduleStatus}</p>
+                        <p><strong>Test Result:</strong> ${response.testResult}</p>
+                    `;
+                } else {
+                    log(`WASM loading test failed: ${response.error}`, 'error');
+                    updateStatus('WASM loading test failed', 'error');
+                }
+                
+            } catch (error) {
+                log(`Error during WASM test: ${error.message}`, 'error');
+                updateStatus('Error during test', 'error');
+                console.error('WASM test error:', error);
+            }
+        }
+
+        // Auto-test on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            log('Page loaded, ready for testing');
+            updateStatus('Ready to test WASM loading', 'info');
+        });
+    </script>
+</body>
+</html>

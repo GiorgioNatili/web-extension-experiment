@@ -19,6 +19,39 @@ let resultsPanel: HTMLElement | null = null;
 let interceptedFiles = new Map<string, any>();
 
 /**
+ * Message bridge: allow test pages to communicate with the extension via window.postMessage
+ * This avoids calling chrome.runtime APIs directly from webpages, which requires an extensionId.
+ */
+window.addEventListener('message', async (event: MessageEvent) => {
+  try {
+    // Only accept messages from the same window
+    if (event.source !== window) return;
+
+    const data: any = (event as any).data;
+    if (!data || data.source !== 'squarex-test' || !data.payload) return;
+
+    const correlationId = data.correlationId || null;
+    try {
+      const response = await chrome.runtime.sendMessage(data.payload);
+      window.postMessage({
+        source: 'squarex-extension',
+        correlationId,
+        response
+      }, '*');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      window.postMessage({
+        source: 'squarex-extension',
+        correlationId,
+        error: message
+      }, '*');
+    }
+  } catch (e) {
+    // Swallow unexpected bridge errors to avoid breaking the page
+  }
+});
+
+/**
  * Generate a unique operation ID
  */
 function generateOperationId(): string {
@@ -609,7 +642,7 @@ async function handleFileSelect(event: Event) {
 /**
  * Process file using streaming protocol
  */
-async function processFileWithStreaming(file: File): Promise<void> {
+async function processFileWithStreaming(file: File): Promise<any> {
   const operationId = generateOperationId();
   
   try {
@@ -674,6 +707,7 @@ async function processFileWithStreaming(file: File): Promise<void> {
       updateProgress(100, 'Analysis complete!');
       showResults(finalizeResponse.result, file.name);
       showNotification(MESSAGES.ANALYSIS_COMPLETE, 'success');
+      return finalizeResponse.result;
     } else {
       throw new Error('Streaming finalization failed');
     }
@@ -687,7 +721,7 @@ async function processFileWithStreaming(file: File): Promise<void> {
   }
 }
 
-async function analyzeFile(content: string, fileName: string) {
+async function analyzeFile(content: string, fileName: string): Promise<any> {
   console.log('Analyzing file:', fileName);
   
   // Show progress
@@ -704,8 +738,10 @@ async function analyzeFile(content: string, fileName: string) {
     if (response.success) {
       showResults(response.result, fileName);
       showNotification(MESSAGES.ANALYSIS_COMPLETE, 'success');
+      return response.result;
     } else {
       showNotification(response.error || MESSAGES.ANALYSIS_FAILED, 'error');
+      throw new Error(response.error || 'Analysis failed');
     }
     
   } catch (error) {

@@ -1,3 +1,8 @@
+# Miscellaneous
+.vscode/
+.cursor_rules/
+.plans
+
 # Dependencies
 node_modules/
 npm-debug.log*
@@ -144,3 +149,7 @@ diagrams/temp_*.mmd
 
 # Local development
 .local/
+
+# Test files (never commit)
+tests/extension-test.html
+tests/serve-test.js
