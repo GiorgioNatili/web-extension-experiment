@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Basic Functionality Tests', () => {
   test('should load test page successfully', async ({ page }) => {
-    await page.goto('http://localhost:8080/test-page.html');
+    await page.goto('http://localhost:8080/tests/test-page.html');
     
     // Check page title
     await expect(page).toHaveTitle('SquareX Extension Test Page');
@@ -21,7 +21,7 @@ test.describe('Basic Functionality Tests', () => {
   });
 
   test('should display file upload interface', async ({ page }) => {
-    await page.goto('http://localhost:8080/test-page.html');
+    await page.goto('http://localhost:8080/tests/test-page.html');
     
     // Check file input exists
     const fileInput = page.locator('#test-file');
@@ -33,7 +33,7 @@ test.describe('Basic Functionality Tests', () => {
   });
 
   test('should handle file selection', async ({ page }) => {
-    await page.goto('http://localhost:8080/test-page.html');
+    await page.goto('http://localhost:8080/tests/test-page.html');
     
     // Create a test file
     const testContent = 'This is a test file content for scanning.';
@@ -60,7 +60,7 @@ test.describe('Basic Functionality Tests', () => {
   });
 
   test('should check extension status', async ({ page }) => {
-    await page.goto('http://localhost:8080/test-page.html');
+    await page.goto('http://localhost:8080/tests/test-page.html');
     
     // Check extension status section exists
     await expect(page.locator('#extension-status')).toBeVisible();
@@ -68,7 +68,7 @@ test.describe('Basic Functionality Tests', () => {
   });
 
   test('should have proper styling and layout', async ({ page }) => {
-    await page.goto('http://localhost:8080/test-page.html');
+    await page.goto('http://localhost:8080/tests/test-page.html');
     
     // Check container styling
     const container = page.locator('.container');

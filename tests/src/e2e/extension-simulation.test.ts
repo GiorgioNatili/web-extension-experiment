@@ -3,7 +3,7 @@ import { join } from 'path';
 
 test.describe('Extension Simulation Tests', () => {
   test('should simulate extension loading and initialization', async ({ page }) => {
-    await page.goto('http://localhost:8080/test-page.html');
+    await page.goto('http://localhost:8080/tests/test-page.html');
     
     // Check that extension indicator is present
     await expect(page.locator('[data-squarex-extension]')).toBeVisible();
@@ -11,7 +11,7 @@ test.describe('Extension Simulation Tests', () => {
   });
 
   test('should simulate UI toggle functionality', async ({ page }) => {
-    await page.goto('http://localhost:8080/test-page.html');
+    await page.goto('http://localhost:8080/tests/test-page.html');
     
     // Check UI toggle is present
     const toggle = page.locator('[data-squarex-ui-toggle]');
@@ -25,7 +25,7 @@ test.describe('Extension Simulation Tests', () => {
   });
 
   test('should simulate file upload and analysis', async ({ page }) => {
-    await page.goto('http://localhost:8080/test-page.html');
+    await page.goto('http://localhost:8080/tests/test-page.html');
     
     // Create a test file
     const testContent = 'This is a test file for analysis.';
@@ -52,7 +52,7 @@ test.describe('Extension Simulation Tests', () => {
   });
 
   test('should simulate error handling', async ({ page }) => {
-    await page.goto('http://localhost:8080/test-page.html');
+    await page.goto('http://localhost:8080/tests/test-page.html');
     
     // Trigger error by clicking a non-existent element
     await page.evaluate(() => {
@@ -69,7 +69,7 @@ test.describe('Extension Simulation Tests', () => {
   });
 
   test('should simulate accessibility features', async ({ page }) => {
-    await page.goto('http://localhost:8080/test-page.html');
+    await page.goto('http://localhost:8080/tests/test-page.html');
     
     // Check ARIA attributes on results panel
     const panel = page.locator('[data-squarex-results-panel]');
@@ -89,7 +89,7 @@ test.describe('Extension Simulation Tests', () => {
   });
 
   test('should simulate keyboard navigation', async ({ page }) => {
-    await page.goto('http://localhost:8080/test-page.html');
+    await page.goto('http://localhost:8080/tests/test-page.html');
     
     // Focus on toggle directly
     const toggle = page.locator('[data-squarex-ui-toggle]');
@@ -102,7 +102,7 @@ test.describe('Extension Simulation Tests', () => {
   });
 
   test('should simulate multiple file uploads', async ({ page }) => {
-    await page.goto('http://localhost:8080/test-page.html');
+    await page.goto('http://localhost:8080/tests/test-page.html');
     
     // Upload first file
     const testFile1 = Buffer.from('First test file content');
@@ -131,7 +131,8 @@ test.describe('Extension Simulation Tests', () => {
   });
 
   test('should simulate performance monitoring', async ({ page }) => {
-    await page.goto('http://localhost:8080/test-page.html');
+    await page.goto('http://localhost:8080/tests/test-page.html');
+    await page.waitForSelector('#test-file');
     
     // Start performance measurement
     const startTime = Date.now();
