@@ -41,14 +41,21 @@ export class WASMLoaderImpl implements WASMLoader {
       };
       console.log('[WASM] Environment summary:', envSummary);
       
-      // Detect browser extension environment
-      const isExtension = typeof chrome !== 'undefined' && chrome.runtime;
+      // Detect browser extension environment (Chrome/Firefox/Safari)
+      const hasChrome = typeof chrome !== 'undefined' && (chrome as any).runtime;
+      const hasBrowser = typeof (globalThis as any).browser !== 'undefined' && (globalThis as any).browser.runtime;
+      const isExtension = hasChrome || hasBrowser;
+      const getURL = (path: string): string => {
+        if (hasChrome) return (chrome as any).runtime.getURL(path);
+        if (hasBrowser) return (globalThis as any).browser.runtime.getURL(path);
+        return path;
+      };
       
       // wasmNs is the ESM namespace from wasm-pack glue (exports class WasmModule and default init)
       let wasmNs: any;
       if (isExtension) {
-        const wasmJsUrl = chrome.runtime.getURL('wasm.js');
-        const wasmBinaryUrl = chrome.runtime.getURL('wasm_bg.wasm');
+        const wasmJsUrl = getURL('wasm.js');
+        const wasmBinaryUrl = getURL('wasm_bg.wasm');
         console.log('[WASM] Extension environment URLs:', { wasmJsUrl, wasmBinaryUrl });
 
         try {
