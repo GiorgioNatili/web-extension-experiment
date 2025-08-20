@@ -102,6 +102,22 @@ const raw = moduleInstance.finalize_streaming(analyzer);
 - Mock-based approach ensures tests are reliable and fast
 - Tests validate URL generation, message bridge, and file processing
 
+### 6) Update Shared Components for Cross-Browser Compatibility
+**Decision**: Enhance shared WASM loader to support modern wasm-bindgen and MV3 architecture.
+
+**Rationale**:
+- wasm-bindgen deprecated string parameter format in favor of object format
+- Chrome MV3 service workers require preloaded namespace injection
+- Firefox extension benefits from consistent WASM loading behavior
+- Shared components should be optimized for production builds
+
+**Implementation**:
+- Updated `shared/src/wasm/loader.ts` to use object parameter format `{ module_or_path: url }`
+- Added `WASMLoaderOptions` interface for preloaded namespace support
+- Enhanced extension environment detection for Chrome/Firefox/Safari
+- Added `sideEffects: false` to `shared/package.json` for better tree-shaking
+- Improved type exports in `shared/src/index.ts` to prevent duplicate re-exports
+
 ## Technical Changes
 
 ### Files Modified
@@ -109,7 +125,11 @@ const raw = moduleInstance.finalize_streaming(analyzer);
 #### Chrome Extension Core
 - `extensions/chrome/src/content/content.ts`: Fixed WASM result handling, analyzer state management, ready signal
 - `extensions/chrome/src/background/wasm-loader.ts`: Updated WASM initialization with object parameters
-- `shared/src/wasm/loader.ts`: Fixed deprecated parameter warnings
+
+#### Shared Components (Cross-Browser Impact)
+- `shared/src/wasm/loader.ts`: Fixed deprecated parameter warnings and added MV3 support
+- `shared/src/index.ts`: Improved type exports to prevent duplicate re-exports
+- `shared/package.json`: Added sideEffects: false for better tree-shaking optimization
 
 #### Test Infrastructure
 - `tests/test-page.html`: Added real extension detection with ready signal
@@ -130,6 +150,21 @@ try {
 } catch (error) {
   throw new Error(`WASM analysis failed: ${error.message}`);
 }
+```
+
+#### Shared WASM Loader Updates
+```typescript
+// Before (deprecated):
+await wasmNs.default(wasmBinaryUrl);
+
+// After (compatible):
+await wasmNs.default({ module_or_path: wasmBinaryUrl });
+
+// New MV3 support for Chrome service worker:
+const wasmLoader = new WASMLoaderImpl({ 
+  wasmNamespace: wasmNs,  // Preloaded from webpack
+  wasmBinaryURL: chrome.runtime.getURL('wasm_bg.wasm') 
+});
 ```
 
 #### Ready Signal Implementation
@@ -166,6 +201,9 @@ const readyListener = (ev) => {
 - ❌ Chrome runtime errors: "Unchecked runtime.lastError"
 - ❌ Test pages showing "Mock extension loaded"
 - ❌ WASM loading tests failing with "undefined" errors
+- ❌ wasm-bindgen deprecation warnings: "using deprecated parameters"
+- ❌ Firefox extension using outdated WASM initialization
+- ❌ Shared components not optimized for tree-shaking
 
 ### After Fixes
 - ✅ WASM analysis working correctly with proper error handling
@@ -174,6 +212,10 @@ const readyListener = (ev) => {
 - ✅ Test pages properly detecting real extension
 - ✅ WASM loading tests passing with detailed results
 - ✅ Comprehensive test coverage preventing regressions
+- ✅ wasm-bindgen compatibility with object parameter format
+- ✅ Chrome MV3 service worker support via preloaded namespace injection
+- ✅ Firefox extension using updated shared WASM loader
+- ✅ Optimized bundle size with sideEffects: false
 
 ## Testing
 
@@ -193,9 +235,9 @@ const readyListener = (ev) => {
 ## Future Considerations
 
 ### Firefox Extension
-- Similar fixes needed for Firefox extension
-- Firefox uses different message bridge implementation
-- Requires testing in Firefox browser environment
+- Firefox extension now uses updated shared WASM loader
+- Benefits from wasm-bindgen compatibility fixes
+- Requires testing in Firefox browser environment before committing changes
 
 ### Safari Extension
 - Safari has TypeScript compilation errors
@@ -206,6 +248,7 @@ const readyListener = (ev) => {
 - WASM files are large (894KB) - consider compression
 - Streaming analysis could be optimized for very large files
 - Consider lazy loading for better startup performance
+- Shared components now optimized with sideEffects: false for better tree-shaking
 
 ## Impact
 
@@ -223,5 +266,7 @@ const readyListener = (ev) => {
 - **Reduced bug reports**: Core WASM functionality is now stable
 - **Easier debugging**: Specific error messages and logging
 - **Test coverage**: Automated tests catch issues early
+- **Cross-browser consistency**: Shared components ensure uniform behavior
+- **Future-proof architecture**: wasm-bindgen compatibility and MV3 support
 
 This fix addresses the critical WASM integration issues and provides a solid foundation for the Chrome extension's file analysis capabilities.
