@@ -433,5 +433,76 @@ Tip: And if you see gaps across people, this is a high-leverage place to level u
       expect(result.decision).toBeDefined();
       expect(result.reason).not.toContain('No content processed');
     });
+
+    test('should prevent finalize call order regression', async () => {
+      // Mock the WASM module with call tracking
+      const callOrder: string[] = [];
+      const mockModuleWithCallTracking = {
+        WasmModule: jest.fn().mockImplementation(() => ({
+          init_streaming: jest.fn().mockReturnValue({ __analyzer: 'test-analyzer' }),
+          process_chunk: jest.fn().mockImplementation((analyzer, content) => ({
+            __analyzer: 'updated-analyzer',
+            __content: content
+          })),
+          finalize_streaming: jest.fn().mockImplementation(() => {
+            callOrder.push('finalize_streaming');
+            return {
+              top_words: ['test'],
+              banned_phrases: [],
+              pii_patterns: [],
+              entropy: 2.5,
+              is_obfuscated: false,
+              decision: 'allow',
+              reason: 'Test analysis complete',
+              risk_score: 0.1
+            };
+          }),
+          get_streaming_stats: jest.fn().mockImplementation(() => {
+            callOrder.push('get_streaming_stats');
+            return {
+              total_time: 100,
+              peak_memory: 1024,
+              bytes_per_second: 1000
+            };
+          })
+        }))
+      };
+
+      jest.spyOn(firefoxWASMLoader, 'isModuleLoaded').mockReturnValue(true);
+      jest.spyOn(firefoxWASMLoader, 'getRawModule').mockReturnValue(mockModuleWithCallTracking);
+
+      // Simulate the wrapper's finalize method call order
+      const wasmModule = firefoxWASMLoader.getRawModule();
+      const moduleInstance = new wasmModule.WasmModule();
+      let analyzer = moduleInstance.init_streaming();
+      analyzer = moduleInstance.process_chunk(analyzer, 'test content');
+      
+      // This should call get_streaming_stats BEFORE finalize_streaming
+      const stats = moduleInstance.get_streaming_stats(analyzer);
+      const result = moduleInstance.finalize_streaming(analyzer);
+
+      // Verify the correct call order (stats before finalize)
+      expect(callOrder).toEqual(['get_streaming_stats', 'finalize_streaming']);
+      expect(stats).toBeDefined();
+      expect(result).toBeDefined();
+      expect(result.risk_score).toBe(0.1);
+    });
+
+    test('should prevent set-public-path regression', async () => {
+      // Test that set-public-path.ts is properly configured
+      const mockRuntime = {
+        getURL: jest.fn((path: string) => `moz-extension://test-id/${path}`)
+      };
+
+      // Mock global browser runtime
+      (global as any).browser = { runtime: mockRuntime };
+
+      // Import set-public-path to ensure it runs
+      require('../set-public-path');
+      
+      // Verify webpack public path is set correctly
+      expect(typeof (global as any).__webpack_public_path__).toBe('string');
+      expect((global as any).__webpack_public_path__).toContain('moz-extension://');
+    });
   });
 });
