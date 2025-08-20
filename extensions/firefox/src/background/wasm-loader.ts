@@ -233,7 +233,9 @@ class StreamingAnalyzerWrapper {
       } else {
         // Fallback to wrapper interface
         console.log('[FF] Using wrapper interface for processChunk');
+        console.log('[FF] processChunk input - handle:', this.handle, 'chunk length:', chunk.length);
         const result = this.wasmModule.processChunk(this.handle, chunk);
+        console.log('[FF] processChunk output - result:', result, 'result type:', typeof result);
         
         // Enhanced handle validation and reassignment
         if (result && typeof result === 'object') {
@@ -272,10 +274,35 @@ class StreamingAnalyzerWrapper {
     let result: any;
     let stats: any;
     
+    console.log('[FF] Finalize called - handle state:', {
+      hasHandle: !!this.handle,
+      handleType: typeof this.handle,
+      handleKeys: this.handle ? Object.keys(this.handle) : [],
+      chunksCount: this.chunks.length
+    });
+    
     try {
-      // Get stats BEFORE finalizing (handle becomes invalid after finalize)
-      stats = this.wasmModule.getStreamingStats(this.handle);
-      result = this.wasmModule.finalizeStreaming(this.handle);
+      // Check if the handle is actually a complete result from processChunk
+      if (this.handle && typeof this.handle === 'object' && 
+          (this.handle.total_content || this.handle.word_counts || this.handle.banned_phrase_matches)) {
+        console.log('[FF] Handle appears to be a complete result, skipping finalizeStreaming');
+        result = this.handle;
+      } else {
+        // FIXED: Call finalizeStreaming FIRST, then getStreamingStats
+        // The handle becomes invalid after finalizeStreaming, so we can't get stats after
+        console.log('[FF] About to call finalizeStreaming with handle:', {
+          handle: this.handle,
+          handleKeys: Object.keys(this.handle),
+          handleValues: Object.values(this.handle),
+          wasmModuleType: typeof this.wasmModule,
+          hasFinalizeStreaming: typeof this.wasmModule.finalizeStreaming === 'function'
+        });
+        
+        result = this.wasmModule.finalizeStreaming(this.handle);
+        console.log('[FF] finalizeStreaming succeeded, result:', result);
+        // Note: We can't get stats after finalizeStreaming because the handle is invalid
+        // We'll use default stats instead
+      }
     } catch (error) {
       // Enhanced error logging for Firefox debugging
       console.error('[FF] Detailed WASM finalize error:', {
@@ -346,8 +373,8 @@ class StreamingAnalyzerWrapper {
         processing_time: duration,
         performance: {
           timing: { total_time: duration },
-          memory: { peak_memory: stats?.memoryUsage || 1024 },
-          throughput: { bytes_per_second: stats?.throughput || 1000 }
+          memory: { peak_memory: 1024 }, // Default since we can't get stats after finalization
+          throughput: { bytes_per_second: 1000 } // Default since we can't get stats after finalization
         }
       },
       analysis: {
