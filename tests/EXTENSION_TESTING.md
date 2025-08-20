@@ -23,11 +23,8 @@ pnpm --filter extensions-chrome build
 ### 2. Start the Test Server
 
 ```bash
-# Navigate to the tests directory
-cd tests
-
-# Start the test server
-node serve-test.js
+# Navigate to the repository root and start a local server
+python3 -m http.server 8080
 ```
 
 The server will start on `http://localhost:8080`
@@ -42,66 +39,112 @@ The server will start on `http://localhost:8080`
 
 ### 4. Test the Extension
 
-1. Navigate to `http://localhost:8080/extension-test.html`
+1. Navigate to `http://localhost:8080/tests/test-page.html`
 2. The test page should load with a file upload interface
-3. Click "Check Extension Status" to verify the extension is loaded
+3. Optionally open the popup and try "Test WASM"
 4. Select a file to upload and test the scanning functionality
 
 ## Expected Behavior
 
 ### Extension Status
-- **WASM Loaded**: The extension should show "WASM Loaded" when the WebAssembly module is successfully loaded
-- **Extension Detected**: The test page should detect the extension and show "Extension detected and active!"
+- **WASM Loaded**: The popup or test page should indicate WASM is loaded
+- **Extension Detected**: The test page detects the extension and shows active status
 
 ### File Scanning
-- **File Selection**: When you select a file, it should show file details (name, size, type)
-- **Scanning Process**: The extension should process the file and display results
-- **Results Display**: Results should include:
-  - File information
-  - Threat detection
-  - Warnings
-  - Risk assessment
+- **File Selection**: Shows file details (name, size, type)
+- **Scanning Process**: Progress and results appear
+- **Results Display**: Decision (allow/block), reason, risk score, and metrics
+
+### Risk Assessment Consistency
+- **Cross-Browser Consistency**: Chrome and Firefox should return identical risk scores for the same content
+- **HR/Performance Content**: Content with "development plan", "performance reviews", "self-evaluate" should trigger ~17% risk score
+- **Risk Indicators**: Content with "gaps across people", "level up the whole team" should be detected as HR/performance content
 
 ## Troubleshooting
 
 ### "WASM Not Loaded" Error
+1. Ensure `extensions/chrome/dist/wasm_bg.wasm` and `wasm.js` exist
+2. Rebuild: `pnpm --filter wasm build && pnpm --filter extensions-chrome build`
+3. Reload the extension in `chrome://extensions/`
+4. Check the service worker console for errors
 
-If you see "WASM Not Loaded":
+### Extension Not Detected / Upload Not Working
+1. Ensure you are on `http://localhost:8080/*`
+2. Check host permissions in manifest
+3. Confirm content script is injected (console logs)
 
-1. **Check Extension Build**: Make sure the extension was built successfully
-2. **Check WASM Files**: Verify that `wasm_bg.wasm` and `wasm.js` are in the `extensions/chrome/dist` folder
-3. **Check Console**: Open Chrome DevTools (F12) and check the console for error messages
-4. **Reload Extension**: Try reloading the extension in `chrome://extensions/`
+### Risk Assessment Inconsistency
+1. **Different Risk Scores**: If Chrome and Firefox return different risk scores for the same content
+   - Check that both extensions use the same normalization logic
+   - Verify WASM result handling is consistent
+   - Run risk assessment consistency tests: `pnpm --filter extensions-chrome test` and `pnpm --filter extensions-firefox test`
+2. **Missing Risk Detection**: If HR/performance content isn't detected
+   - Verify content contains expected keywords: "development plan", "performance reviews", "self-evaluate"
+   - Check that WASM module is properly analyzing content
+   - Ensure result normalization preserves risk_score field
 
-### Extension Not Detected
+---
 
-If the test page doesn't detect the extension:
+# Firefox Extension Testing Guide
 
-1. **Check Permissions**: Make sure the extension has permission to access `http://localhost:8080/*`
-2. **Check Manifest**: Verify the manifest.json includes the correct host permissions
-3. **Check Content Script**: Ensure the content script is running on the test page
+## Prerequisites
+- **Firefox** installed
+- **Node.js / Python** to serve test pages
+- Built artifacts for Firefox
 
-### File Upload Not Working
+## Build
+```bash
+# From repo root
+pnpm --filter wasm build
+pnpm --filter extensions-firefox build
+```
 
-If file upload doesn't trigger the extension:
+This produces `extensions/firefox/dist/` with:
+- `background.js`, `content.js`, `popup.js`, `options.js`
+- `manifest.json`
+- `wasm_bg.wasm`, `wasm.js`
 
-1. **Check Content Script**: Verify the content script is injected on the page
-2. **Check File Input**: Make sure the file input has the correct event listeners
-3. **Check Console**: Look for JavaScript errors in the browser console
+## Start test server
+```bash
+# From repo root
+python3 -m http.server 8080
+```
+Test pages:
+- `http://localhost:8080/tests/test-page.html`
+- `http://localhost:8080/tests/test-wasm-loading.html`
 
-## Test Files
+## Load the extension
+1. Open `about:debugging#/runtime/this-firefox`
+2. Click "Load Temporary Add-on…"
+3. Select `extensions/firefox/dist/manifest.json`
+4. Verify it loads without errors
 
-The following files are used for testing:
+## Validate functionality
+- Open the popup and click "Test WASM" to verify background WASM loading.
+- Open the background console from `about:debugging` → Inspect to see logs.
+- On the test page, select a `.txt` file; you should see progress and results. The content script bridge enables the isolation page to message the background.
 
-- `extension-test.html` - The main test page with file upload interface
-- `serve-test.js` - Simple HTTP server to serve the test page
-- `EXTENSION_TESTING.md` - This documentation
+## Run tests for Firefox
+```bash
+# Unit tests
+pnpm --filter extensions-firefox test
 
-**Note**: These test files are excluded from git commits via `.gitignore` to keep them local to your development environment.
+# Risk assessment consistency tests
+pnpm --filter extensions-firefox test --testNamePattern="Risk Assessment Consistency"
 
-## Development Notes
+# E2E (Firefox only)
+pnpm -C tests exec playwright test --project=firefox
 
-- The extension uses a real WASM module for file analysis
-- If WASM loading fails, it falls back to a mock implementation
-- The test page simulates file scanning for demonstration purposes
-- Real file analysis results will depend on the actual WASM module implementation
+# All E2E
+pnpm --filter tests run test:e2e
+
+# Show last report
+pnpm -C tests exec playwright show-report
+```
+
+## Troubleshooting
+- If popup "Test WASM" fails, check the background console for `[WASM]` logs.
+- Ensure `wasm_bg.wasm` and `wasm.js` exist in `extensions/firefox/dist/`.
+- Ensure test pages are served from `http://localhost:8080/*` so content scripts match the manifest.
+- If test pages need to call the background, use the window.postMessage bridge (built into the content script).
+- **Risk Assessment Issues**: If Firefox returns different risk scores than Chrome, check that the direct WASM interface is being used and result normalization is consistent.
