@@ -1,9 +1,20 @@
 // Firefox background script
+console.log('[FF] BACKGROUND SCRIPT STARTING - BEFORE IMPORTS');
+console.log('[FF] ==========================================');
+
 import { CONFIG, MESSAGES } from 'shared';
 import { firefoxWASMLoader } from './wasm-loader';
 import { firefoxErrorHandler, ErrorType } from '../utils/error-handler';
 
-console.log('SquareX Security Scanner Background Script loaded');
+console.log('[FF] ==========================================');
+console.log('[FF] SquareX Security Scanner Background Script loaded');
+console.log('[FF] Background script environment check:', {
+  hasBrowser: typeof browser !== 'undefined',
+  hasRuntime: typeof browser !== 'undefined' && !!browser.runtime,
+  hasOnMessage: typeof browser !== 'undefined' && !!browser.runtime && !!browser.runtime.onMessage,
+  timestamp: new Date().toISOString()
+});
+console.log('[FF] ==========================================');
 
 // Configuration
 const TIMEOUT_MS = 30000; // 30 seconds
@@ -31,8 +42,21 @@ async function initializeWASM() {
 // Initialize on startup
 initializeWASM();
 
+// Test message listener is working
+setTimeout(() => {
+  console.log('[FF] ==========================================');
+  console.log('[FF] Background script startup test - message listener should be active');
+  console.log('[FF] If you see this message, the background script is working!');
+  console.log('[FF] ==========================================');
+}, 1000);
+
 // Handle messages from content script
 browser.runtime.onMessage.addListener((message: any, sender: any, sendResponse: any) => {
+  console.log('[FF] Background script received message:', {
+    type: message.type,
+    hasData: !!message.data,
+    timestamp: new Date().toISOString()
+  });
   console.log('Background received message:', message);
   
   switch (message.type) {
@@ -56,7 +80,8 @@ browser.runtime.onMessage.addListener((message: any, sender: any, sendResponse: 
       sendResponse({ 
         status: 'ready',
         wasm_loaded: firefoxWASMLoader.isModuleLoaded(),
-        error_stats: firefoxErrorHandler.getErrorStats()
+        error_stats: firefoxErrorHandler.getErrorStats(),
+        debug: (() => { try { const m: any = (firefoxWASMLoader as any); const mod = (m && m.wasmModule) || null; return { keys: mod ? Object.keys(mod) : [], hasCreateFn: !!(mod && typeof mod.createStreamingAnalyzer === 'function') }; } catch { return { keys: [], hasCreateFn: false }; } })()
       });
       break;
       
@@ -66,9 +91,19 @@ browser.runtime.onMessage.addListener((message: any, sender: any, sendResponse: 
         error_stats: firefoxErrorHandler.getErrorStats()
       });
       break;
+    
+    case 'TEST_WASM_LOADING':
+      handleWasmTest(sendResponse);
+      return true; // Keep message channel open for async response
       
     default:
-      console.warn('Unknown message type:', message.type);
+      console.warn('[FF] Unknown message type:', message.type);
+      console.log('[FF] Unhandled message details:', {
+        type: message.type,
+        hasData: !!message.data,
+        messageKeys: Object.keys(message),
+        timestamp: new Date().toISOString()
+      });
   }
 });
 
@@ -77,6 +112,12 @@ browser.runtime.onMessage.addListener((message: any, sender: any, sendResponse: 
  */
 async function handleFileAnalysis(message: any, sendResponse: (response: any) => void) {
   try {
+    console.log('[FF] Background script received analysis request:', {
+      fileName: message.data?.fileName,
+      contentLength: message.data?.content?.length,
+      timestamp: new Date().toISOString()
+    });
+    
     console.log('Starting file analysis...');
     
     // Ensure WASM module is loaded
@@ -84,16 +125,71 @@ async function handleFileAnalysis(message: any, sendResponse: (response: any) =>
       await firefoxWASMLoader.loadWASMModule();
     }
     
-    // Create analyzer and process content
-    const analyzer = firefoxWASMLoader.createStreamingAnalyzer();
-    analyzer.processChunk(message.data.content);
-    const result = analyzer.finalize();
+    // Use Chrome's direct WASM interface pattern
+    const wasmModule = firefoxWASMLoader.getRawModule();
+    if (!wasmModule || typeof wasmModule.WasmModule !== 'function') {
+      throw new Error('WASM module not available or invalid');
+    }
+    
+    // Debug content processing
+    console.log('[FF] Processing content using direct WASM interface:', {
+      contentLength: message.data.content.length,
+      contentPreview: message.data.content.substring(0, 100) + '...',
+      hasContent: !!message.data.content,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Use Chrome's proven pattern: direct WASM module calls
+    const moduleInstance = new wasmModule.WasmModule();
+    let analyzer = moduleInstance.init_streaming();
+    
+    console.log('[FF] WASM analyzer initialized, processing chunk...');
+    
+    // Process chunk and reassign analyzer (Chrome's pattern)
+    analyzer = moduleInstance.process_chunk(analyzer, message.data.content);
+    
+    console.log('[FF] WASM chunk processed, finalizing...');
+    
+    // Finalize analysis
+    const rawResult = moduleInstance.finalize_streaming(analyzer);
+    const stats = moduleInstance.get_streaming_stats(analyzer);
+    
+    // Normalize result to match expected format
+    const result = {
+      topWords: rawResult?.top_words ?? [],
+      bannedPhrases: rawResult?.banned_phrases ?? [],
+      piiPatterns: rawResult?.pii_patterns ?? [],
+      entropy: rawResult?.entropy ?? 0,
+      isObfuscated: rawResult?.is_obfuscated ?? false,
+      decision: rawResult?.decision ?? 'allow',
+      reason: rawResult?.reason ?? 'Analysis complete',
+      riskScore: rawResult?.risk_score ?? 0,
+      stats: {
+        totalChunks: 1,
+        totalContent: message.data.content.length,
+        processingTime: Date.now() - Date.now(),
+        performance: {
+          timing: { total_time: stats?.total_time || 0 },
+          memory: { peak_memory: stats?.peak_memory || 0 },
+          throughput: { bytes_per_second: stats?.bytes_per_second || 0 }
+        }
+      }
+    };
     
     console.log('Analysis complete:', result);
     sendResponse({ success: true, result });
     
   } catch (error) {
-    console.error('Analysis failed:', error);
+    // Enhanced error logging for Firefox debugging
+    console.error('[FF] Detailed background analysis error:', {
+      fileName: message.data?.fileName,
+      contentLength: message.data?.content?.length,
+      errorName: error instanceof Error ? error.name : 'Unknown',
+      errorMessage: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+      timestamp: new Date().toISOString(),
+      operation: 'file_analysis'
+    });
     
     // Handle error with recovery
     const recovery = await firefoxErrorHandler.handleError(error as Error, {
@@ -202,6 +298,67 @@ async function handleStreamInit(message: any, sendResponse: (response: any) => v
         }
       });
     }
+  }
+}
+
+/**
+ * Handle WASM loading test (parity with Chrome)
+ */
+async function handleWasmTest(sendResponse: (response: any) => void) {
+  try {
+    console.log('[FF] Testing WASM loading...');
+    const wasmLoaded = firefoxWASMLoader.isModuleLoaded();
+    const moduleStatus = firefoxWASMLoader.getModuleStatus();
+    console.log('[FF] Current WASM status:', { wasmLoaded, moduleStatus });
+
+    if (!wasmLoaded) {
+      console.log('[FF] WASM not loaded, attempting to load...');
+      await firefoxWASMLoader.loadWASMModule();
+    }
+
+    let testResult = 'WASM module loaded successfully';
+    try {
+      let analyzer: any;
+      try {
+        analyzer = firefoxWASMLoader.createStreamingAnalyzer();
+      } catch (e) {
+        console.warn('[FF] createStreamingAnalyzer failed, attempting raw adapter path');
+        const mod: any = (firefoxWASMLoader as any).getRawModule?.() || (firefoxWASMLoader as any).wasmModule;
+        if (mod && typeof mod.WasmModule === 'function') {
+          const m = new mod.WasmModule();
+          const h = m.init_streaming();
+          analyzer = {
+            processChunk: (chunk: string) => m.process_chunk(h, chunk),
+            finalize: () => ({
+              ...m.finalize_streaming(h),
+              stats: m.get_streaming_stats(h)
+            })
+          };
+        } else {
+          throw e;
+        }
+      }
+      analyzer.processChunk('test content');
+      const result = analyzer.finalize();
+      testResult = `WASM analysis test passed: ${JSON.stringify(result).substring(0, 100)}...`;
+    } catch (e) {
+      testResult = `WASM analysis test failed: ${(e as Error).message}`;
+    }
+
+    sendResponse({
+      success: true,
+      wasmLoaded: firefoxWASMLoader.isModuleLoaded(),
+      moduleStatus: firefoxWASMLoader.getModuleStatus(),
+      testResult
+    });
+  } catch (error) {
+    console.error('[FF] WASM test failed:', error);
+    sendResponse({
+      success: false,
+      error: (error as Error).message,
+      wasmLoaded: firefoxWASMLoader.isModuleLoaded(),
+      moduleStatus: firefoxWASMLoader.getModuleStatus()
+    });
   }
 }
 
@@ -425,3 +582,9 @@ setInterval(() => {
     }
   }
 }, 5 * 60 * 1000); // Check every 5 minutes
+
+// Final test to confirm script execution
+console.log('[FF] ==========================================');
+console.log('[FF] BACKGROUND SCRIPT LOADED SUCCESSFULLY');
+console.log('[FF] If you see this, the background script is working!');
+console.log('[FF] ==========================================');
