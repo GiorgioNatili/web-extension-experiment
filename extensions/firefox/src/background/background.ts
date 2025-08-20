@@ -139,34 +139,26 @@ async function handleFileAnalysis(message: any, sendResponse: (response: any) =>
       await firefoxWASMLoader.loadWASMModule();
     }
     
-    // Use Chrome's direct WASM interface pattern
-    const wasmModule = firefoxWASMLoader.getRawModule();
-    if (!wasmModule || typeof wasmModule.WasmModule !== 'function') {
-      throw new Error('WASM module not available or invalid');
-    }
-    
-    // Debug content processing
-    console.log('[FF] Processing content using direct WASM interface:', {
+    // Use Firefox's wrapper pattern (like the original working version)
+    console.log('[FF] Processing content using Firefox wrapper interface:', {
       contentLength: message.data.content.length,
       contentPreview: message.data.content.substring(0, 100) + '...',
       hasContent: !!message.data.content,
       timestamp: new Date().toISOString()
     });
     
-    // Use Chrome's proven pattern: direct WASM module calls
-    const moduleInstance = new wasmModule.WasmModule();
-    let analyzer = moduleInstance.init_streaming();
+    // Use Firefox's streaming interface directly
+    console.log('[FF] Creating streaming analyzer with wrapper...');
+    const analyzer = firefoxWASMLoader.createStreamingAnalyzer();
+    console.log('[FF] Streaming analyzer created:', analyzer);
     
-    console.log('[FF] WASM analyzer initialized, processing chunk...');
+    console.log('[FF] Processing chunk with wrapper...');
+    analyzer.processChunk(message.data.content);
+    console.log('[FF] Chunk processed with wrapper');
     
-    // Process chunk and reassign analyzer (Chrome's pattern)
-    analyzer = moduleInstance.process_chunk(analyzer, message.data.content);
-    
-    console.log('[FF] WASM chunk processed, finalizing...');
-    
-    // Finalize analysis
-    const rawResult = moduleInstance.finalize_streaming(analyzer);
-    const stats = moduleInstance.get_streaming_stats(analyzer);
+    console.log('[FF] Finalizing analysis with wrapper...');
+    const rawResult = analyzer.finalize();
+    console.log('[FF] Analysis finalized with wrapper, rawResult:', rawResult);
     
     // Use Chrome's normalization function for consistent results
     const normalizeWasmResult = (raw: any, stats: any) => {
@@ -192,7 +184,7 @@ async function handleFileAnalysis(message: any, sendResponse: (response: any) =>
       };
     };
 
-    const result = normalizeWasmResult(rawResult, stats);
+    const result = normalizeWasmResult(rawResult, {});
     
     console.log('Analysis complete:', result);
     sendResponse({ success: true, result });

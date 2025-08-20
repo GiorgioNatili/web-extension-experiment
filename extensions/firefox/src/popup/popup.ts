@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const statusDiv = document.getElementById('status') as HTMLDivElement;
   const fileCountSpan = document.getElementById('fileCount') as HTMLSpanElement;
   const threatCountSpan = document.getElementById('threatCount') as HTMLSpanElement;
+  const testBtn = document.getElementById('testWasmButton') as HTMLButtonElement | null;
 
   // Load current status
   const result = await browser.storage.local.get(['scannerEnabled', 'fileCount', 'threatCount']);
@@ -20,7 +21,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Toggle scanner
   toggleBtn.addEventListener('click', async () => {
-    const newStatus = !scannerEnabled;
+    const current = (await browser.storage.local.get(['scannerEnabled'])).scannerEnabled !== false;
+    const newStatus = !current;
     await browser.storage.local.set({ scannerEnabled: newStatus });
     updateStatus(newStatus);
   });
@@ -29,6 +31,23 @@ document.addEventListener('DOMContentLoaded', async () => {
   optionsBtn.addEventListener('click', () => {
     browser.runtime.openOptionsPage();
   });
+
+  // Test WASM loading in background
+  if (testBtn) {
+    testBtn.addEventListener('click', async () => {
+      try {
+        testBtn.disabled = true;
+        testBtn.textContent = 'Testing...';
+        const response = await (browser as any).runtime.sendMessage({ type: 'TEST_WASM_LOADING' });
+        console.log('WASM test response (Firefox):', response);
+      } catch (e) {
+        console.error('WASM test failed (Firefox):', e);
+      } finally {
+        testBtn.disabled = false;
+        testBtn.textContent = 'Test WASM';
+      }
+    });
+  }
 
   function updateStatus(enabled: boolean) {
     if (enabled) {

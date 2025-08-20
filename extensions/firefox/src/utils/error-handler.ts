@@ -270,7 +270,7 @@ export class FirefoxErrorHandler {
     const avgWordLength = words.reduce((sum: number, word: string) => sum + word.length, 0) / wordCount;
     
     const result = {
-      risk_score: 0.1, // Low risk for fallback
+      risk_score: 0, // Neutral risk for fallback to avoid misleading fixed 10%
       is_safe: true,
       decision: 'allow' as const,
       reason: 'Analysis completed using fallback method',
@@ -304,7 +304,7 @@ export class FirefoxErrorHandler {
     // Process entire file at once instead of streaming
     const content = context?.content || '';
     const result = {
-      risk_score: 0.2,
+      risk_score: 0,
       is_safe: true,
       decision: 'allow' as const,
       reason: 'Analysis completed using traditional method',

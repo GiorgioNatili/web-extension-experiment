@@ -4,6 +4,41 @@ import { getFileInfo, isValidTextFile, readFileAsText } from 'shared';
 import { createElement, createProgressBar } from 'shared';
 
 console.log('SquareX Security Scanner Content Script loaded');
+// Proactively signal multiple times in case the page script attaches late
+try {
+  window.postMessage({ source: 'squarex-extension', ready: true }, '*');
+  setTimeout(() => {
+    try { window.postMessage({ source: 'squarex-extension', ready: true }, '*'); } catch (_) {}
+  }, 500);
+  setTimeout(() => {
+    try { window.postMessage({ source: 'squarex-extension', ready: true }, '*'); } catch (_) {}
+  }, 1500);
+} catch (_) {}
+
+// Message bridge for test pages (parity with Chrome)
+window.addEventListener('message', async (event: MessageEvent) => {
+  try {
+    if (event.source !== window) return;
+    const data: any = (event as any).data;
+    if (!data || data.source !== 'squarex-test' || !data.payload) return;
+
+    const correlationId = data.correlationId || null;
+    try {
+      const response = await (browser as any).runtime.sendMessage(data.payload);
+      window.postMessage({ source: 'squarex-extension', correlationId, response }, '*');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      window.postMessage({ source: 'squarex-extension', correlationId, error: message }, '*');
+    }
+  } catch (_) {
+    // ignore bridge errors
+  }
+});
+
+// Signal presence to the page for faster detection
+try {
+  window.postMessage({ source: 'squarex-extension', ready: true }, '*');
+} catch (_) {}
 
 // Configuration
 const CHUNK_SIZE = CONFIG.CHUNK_SIZE; // 1MB chunks
@@ -24,6 +59,71 @@ let interceptedFiles = new Map<string, any>();
  */
 function generateOperationId(): string {
   return `firefox_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
+
+/**
+ * Validate file before processing
+ */
+function validateFileForProcessing(file: File): void {
+  // Check if file exists
+  if (!file) {
+    throw new Error('Invalid file: file is null or undefined');
+  }
+  
+  // Check file size
+  if (file.size === 0) {
+    throw new Error('Invalid file: file is empty (0 bytes)');
+  }
+  
+  // Check file size limits (100MB max)
+  const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+  if (file.size > MAX_FILE_SIZE) {
+    throw new Error(`File too large: ${(file.size / 1024 / 1024).toFixed(1)}MB exceeds maximum of 100MB`);
+  }
+  
+  // Check file name
+  if (!file.name || file.name.trim() === '') {
+    throw new Error('Invalid file: file has no name');
+  }
+  
+  // Check file type
+  if (!file.type) {
+    console.warn('[FF] File has no MIME type, proceeding with validation');
+  }
+  
+  console.log('[FF] File validation passed:', {
+    name: file.name,
+    size: file.size,
+    type: file.type,
+    lastModified: new Date(file.lastModified).toISOString()
+  });
+}
+
+/**
+ * Validate file content before WASM processing
+ */
+function validateFileContent(content: string, fileName: string): void {
+  // Check if content exists
+  if (!content) {
+    throw new Error(`Invalid content: file "${fileName}" has no content`);
+  }
+  
+  // Check content length
+  if (content.length === 0) {
+    throw new Error(`Invalid content: file "${fileName}" is empty`);
+  }
+  
+  // Check for reasonable content length (prevent memory issues)
+  const MAX_CONTENT_LENGTH = 50 * 1024 * 1024; // 50MB
+  if (content.length > MAX_CONTENT_LENGTH) {
+    throw new Error(`Content too large: ${(content.length / 1024 / 1024).toFixed(1)}MB exceeds maximum of 50MB`);
+  }
+  
+  console.log('[FF] Content validation passed:', {
+    fileName: fileName,
+    contentLength: content.length,
+    hasContent: content.length > 0
+  });
 }
 
 /**
@@ -322,6 +422,9 @@ async function handleInterceptedFile(file: File, input: HTMLInputElement): Promi
   addResultRow(file.name, 'Processing', 0, 'Analyzing...');
   
   try {
+    // Validate file before processing
+    validateFileForProcessing(file);
+    
     // Validate file type
     if (!isValidTextFile(file)) {
       fileData.status = 'Invalid';
@@ -336,12 +439,15 @@ async function handleInterceptedFile(file: File, input: HTMLInputElement): Promi
     
     // Update file data
     fileData.status = result.decision === 'allow' ? 'Allowed' : 'Blocked';
-    fileData.riskScore = result.riskScore;
+    const normalizedRisk = (typeof result?.riskScore === 'number')
+      ? result.riskScore
+      : (typeof result?.risk_score === 'number' ? result.risk_score : 0);
+    fileData.riskScore = normalizedRisk;
     interceptedFiles.set(file.name, fileData);
     
     // Update UI
     const action = result.decision === 'allow' ? 'Allowed' : 'Blocked';
-    addResultRow(file.name, fileData.status, result.riskScore, action);
+    addResultRow(file.name, fileData.status, normalizedRisk, action);
     
     // Show notification
     const message = result.decision === 'allow' 
@@ -356,7 +462,18 @@ async function handleInterceptedFile(file: File, input: HTMLInputElement): Promi
     }
     
   } catch (error) {
-    console.error('Error analyzing intercepted file:', error);
+    // Enhanced error logging for Firefox debugging
+    console.error('[FF] Detailed file analysis error:', {
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type,
+      errorName: error instanceof Error ? error.name : 'Unknown',
+      errorMessage: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+      timestamp: new Date().toISOString(),
+      userAgent: navigator.userAgent
+    });
+    
     fileData.status = 'Error';
     fileData.riskScore = 1.0;
     addResultRow(file.name, 'Error', 1.0, 'Blocked');
@@ -382,9 +499,25 @@ async function analyzeInterceptedFile(file: File): Promise<any> {
  */
 async function analyzeFileContent(content: string, fileName: string): Promise<any> {
   try {
-            const response = await browser.runtime.sendMessage({
-              type: 'ANALYZE_FILE',
+    // Validate content before WASM processing
+    validateFileContent(content, fileName);
+    
+    console.log('[FF] Sending analysis request to background script:', {
+      fileName: fileName,
+      contentLength: content.length,
+      timestamp: new Date().toISOString()
+    });
+    
+    const response = await browser.runtime.sendMessage({
+      type: 'ANALYZE_FILE',
       data: { content, fileName }
+    });
+    
+    console.log('[FF] Received response from background script:', {
+      success: response?.success,
+      hasResult: !!response?.result,
+      hasError: !!response?.error,
+      timestamp: new Date().toISOString()
     });
     
     if (response.success) {
@@ -393,7 +526,16 @@ async function analyzeFileContent(content: string, fileName: string): Promise<an
       throw new Error(response.error || 'Analysis failed');
     }
   } catch (error) {
-    console.error('Analysis failed:', error);
+    // Enhanced error logging for Firefox debugging
+    console.error('[FF] Detailed analysis error:', {
+      fileName: fileName,
+      contentLength: content.length,
+      errorName: error instanceof Error ? error.name : 'Unknown',
+      errorMessage: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+      timestamp: new Date().toISOString(),
+      userAgent: navigator.userAgent
+    });
     throw error;
   }
 }
@@ -587,6 +729,9 @@ async function processFileWithStreaming(file: File): Promise<void> {
   const operationId = generateOperationId();
   
   try {
+    // Validate file before streaming processing
+    validateFileForProcessing(file);
+    
     // Create progress UI
     createProgressUI();
     updateProgress(0, 'Initializing streaming analysis...');
@@ -617,6 +762,12 @@ async function processFileWithStreaming(file: File): Promise<void> {
     for (let offset = 0; offset < file.size; offset += CHUNK_SIZE) {
       const chunk = file.slice(offset, offset + CHUNK_SIZE);
       const content = await readChunkAsText(chunk);
+      
+      // Validate chunk content
+      if (!content || content.length === 0) {
+        console.warn('[FF] Empty chunk detected, skipping');
+        continue;
+      }
 
       // Send chunk to background script with retry logic
       let chunkResponse: any;
@@ -687,6 +838,22 @@ async function processFileWithStreaming(file: File): Promise<void> {
     
     // Show results
     showResults(finalizeResponse.result, file.name);
+    try {
+      const testResults = document.getElementById('test-results');
+      if (testResults) {
+        const risk = (typeof finalizeResponse.result?.riskScore === 'number')
+          ? finalizeResponse.result.riskScore
+          : (typeof finalizeResponse.result?.risk_score === 'number' ? finalizeResponse.result.risk_score : 0);
+        testResults.innerHTML = `
+          <div class="status success">
+            <h4>Analysis Complete</h4>
+            <p><strong>File:</strong> ${file.name}</p>
+            <p><strong>Risk Score:</strong> ${(risk * 100).toFixed(0)}%</p>
+            <p><strong>Decision:</strong> ${finalizeResponse.result?.decision || 'allow'}</p>
+          </div>
+        `;
+      }
+    } catch (_) {}
     
     if (finalizeResponse.fallback) {
       showNotification('Analysis completed using fallback method', 'info');
@@ -695,7 +862,18 @@ async function processFileWithStreaming(file: File): Promise<void> {
     }
 
   } catch (error) {
-    console.error('Streaming analysis failed:', error);
+    // Enhanced error logging for Firefox streaming analysis
+    console.error('[FF] Detailed streaming analysis error:', {
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type,
+      operationId: operationId,
+      errorName: error instanceof Error ? error.name : 'Unknown',
+      errorMessage: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+      timestamp: new Date().toISOString(),
+      userAgent: navigator.userAgent
+    });
     
     // Try to get error log from background script
     try {
@@ -704,10 +882,10 @@ async function processFileWithStreaming(file: File): Promise<void> {
       });
       
       if (errorLogResponse.error_stats) {
-        console.log('Error statistics:', errorLogResponse.error_stats);
+        console.log('[FF] Error statistics:', errorLogResponse.error_stats);
       }
     } catch (logError) {
-      console.error('Failed to get error log:', logError);
+      console.error('[FF] Failed to get error log:', logError);
     }
     
     showNotification(`Analysis failed: ${error}`, 'error');
@@ -721,6 +899,18 @@ async function processFileWithStreaming(file: File): Promise<void> {
  * Show analysis results
  */
 function showResults(result: any, fileName: string): void {
+  // Normalize fields across snake/camel
+  const normalizedRisk = (typeof result?.riskScore === 'number')
+    ? result.riskScore
+    : (typeof result?.risk_score === 'number' ? result.risk_score : 0);
+  const totalContent = (result?.stats && (result.stats.total_content ?? result.stats.totalContent)) || 0;
+
+  // Also reflect in the results panel table for consistency with streaming UI
+  try {
+    const status = result.decision === 'allow' ? 'Allowed' : 'Blocked';
+    addResultRow(fileName, status, normalizedRisk, status);
+  } catch (_) {}
+
   const container = document.createElement('div');
   container.id = 'squarex-results';
   container.style.cssText = `
@@ -752,13 +942,13 @@ function showResults(result: any, fileName: string): void {
       <strong>Reason:</strong> ${result.reason}
     </div>
     <div style="margin-bottom: 15px;">
-      <strong>Risk Score:</strong> ${(result.risk_score * 100).toFixed(1)}%
+      <strong>Risk Score:</strong> ${(normalizedRisk * 100).toFixed(1)}%
     </div>
     <div style="margin-bottom: 15px;">
-      <strong>Processing Time:</strong> ${result.stats?.processing_time || 0}ms
+      <strong>Processing Time:</strong> ${result.stats?.processing_time || result.stats?.processingTime || 0}ms
     </div>
     <div style="margin-bottom: 15px;">
-      <strong>File Size:</strong> ${(result.stats?.total_content / 1024).toFixed(1)} KB
+      <strong>File Size:</strong> ${(totalContent / 1024).toFixed(1)} KB
     </div>
     <button onclick="this.parentElement.remove()" style="
       background: #2196F3; 
@@ -805,7 +995,23 @@ async function handleFileSelect(event: Event): Promise<void> {
       if (response.success) {
         showResults(response.result, file.name);
         showNotification(MESSAGES.ANALYSIS_COMPLETE, 'success');
-} else {
+        try {
+          const testResults = document.getElementById('test-results');
+          if (testResults) {
+            const risk = (typeof response.result?.riskScore === 'number')
+              ? response.result.riskScore
+              : (typeof response.result?.risk_score === 'number' ? response.result.risk_score : 0);
+            testResults.innerHTML = `
+              <div class="status success">
+                <h4>Analysis Complete</h4>
+                <p><strong>File:</strong> ${file.name}</p>
+                <p><strong>Risk Score:</strong> ${(risk * 100).toFixed(0)}%</p>
+                <p><strong>Decision:</strong> ${response.result?.decision || 'allow'}</p>
+              </div>
+            `;
+          }
+        } catch (_) {}
+      } else {
         showNotification(response.error || MESSAGES.ANALYSIS_FAILED, 'error');
       }
     } catch (error) {
