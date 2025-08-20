@@ -174,7 +174,7 @@ export class FirefoxWASMLoader {
 /**
  * Wrapper for streaming analyzer to maintain compatibility
  */
-class StreamingAnalyzerWrapper {
+export class StreamingAnalyzerWrapper {
   private wasmModule: any;
   private handle: any;
   private config: any;
