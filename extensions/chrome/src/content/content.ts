@@ -1,6 +1,8 @@
 import { CONFIG, MESSAGES } from 'shared';
 import { getFileInfo, isValidTextFile, readFileAsText } from 'shared';
 import { createElement, showNotification, createProgressBar } from 'shared';
+// Defer importing wasm glue to avoid breaking content script load if init fails
+let wasmNs: any | null = null;
 
 console.log('SquareX File Scanner Content Script loaded');
 
@@ -18,6 +20,31 @@ let uiMode: 'compact' | 'sidebar' = 'compact';
 let resultsPanel: HTMLElement | null = null;
 let interceptedFiles = new Map<string, any>();
 
+// WASM init state
+let wasmInitialized = false;
+let wasmInitFailed = false;
+
+async function ensureWasm(): Promise<void> {
+  if (wasmInitialized || wasmInitFailed) return;
+  try {
+    if (!wasmNs) {
+      // Use the same approach as the shared loader - dynamic import with runtime URL
+      const wasmJsUrl = chrome.runtime.getURL('wasm.js');
+      const wasmBinaryUrl = chrome.runtime.getURL('wasm_bg.wasm');
+      console.log('[Content] Loading WASM with URLs:', { wasmJsUrl, wasmBinaryUrl });
+      
+      wasmNs = await import(/* webpackIgnore: true */ wasmJsUrl);
+    }
+    // Initialize with explicit wasm URL using object parameter format
+    await wasmNs.default({ module_or_path: chrome.runtime.getURL('wasm_bg.wasm') });
+    wasmInitialized = true;
+    console.log('[Content] WASM initialized successfully');
+  } catch (e) {
+    console.error('[Content] WASM init failed:', e);
+    wasmInitFailed = true;
+  }
+}
+
 /**
  * Message bridge: allow test pages to communicate with the extension via window.postMessage
  * This avoids calling chrome.runtime APIs directly from webpages, which requires an extensionId.
@@ -32,22 +59,25 @@ window.addEventListener('message', async (event: MessageEvent) => {
 
     const correlationId = data.correlationId || null;
     try {
-      const response = await chrome.runtime.sendMessage(data.payload);
-      window.postMessage({
-        source: 'squarex-extension',
-        correlationId,
-        response
-      }, '*');
+      if (data.payload?.type === 'TEST_WASM_LOADING') {
+        const resp = await handleLocalWasmTest();
+        console.log('[Content] WASM test response:', resp);
+        window.postMessage({ source: 'squarex-extension', correlationId, response: resp }, '*');
+      } else if (data.payload?.type === 'ANALYZE_FILE_BRIDGE' && data.payload?.content) {
+        const result = await analyzeFileLocally(data.payload.content);
+        window.postMessage({ source: 'squarex-extension', correlationId, response: { success: true, result } }, '*');
+      } else {
+        const response = await chrome.runtime.sendMessage(data.payload);
+        window.postMessage({ source: 'squarex-extension', correlationId, response }, '*');
+      }
     } catch (error) {
+      console.error('[Content] Message bridge error:', error);
       const message = error instanceof Error ? error.message : String(error);
-      window.postMessage({
-        source: 'squarex-extension',
-        correlationId,
-        error: message
-      }, '*');
+      window.postMessage({ source: 'squarex-extension', correlationId, error: message }, '*');
     }
   } catch (e) {
     // Swallow unexpected bridge errors to avoid breaking the page
+    console.error('[Content] Unexpected bridge error:', e);
   }
 });
 
@@ -650,20 +680,11 @@ async function processFileWithStreaming(file: File): Promise<any> {
     createProgressUI();
     updateProgress(0, 'Initializing streaming analysis...');
     
-    // Initialize streaming
-    const initResponse = await chrome.runtime.sendMessage({
-      type: 'STREAM_INIT',
-      operation_id: operationId,
-      file: {
-        name: file.name,
-        size: file.size,
-        type: file.type
-      }
-    });
-    
-    if (!initResponse.success) {
-      throw new Error('Streaming initialization failed');
-    }
+    // Initialize local WASM streaming
+    await ensureWasm();
+    if (!wasmInitialized || !wasmNs) throw new Error('WASM not available');
+    const moduleInstance = new (wasmNs as any).WasmModule();
+    let analyzer = moduleInstance.init_streaming();
     
     updateProgress(10, 'Processing file chunks...');
     
@@ -678,15 +699,8 @@ async function processFileWithStreaming(file: File): Promise<any> {
       const chunkFile = new File([chunk], `chunk_${chunkIndex}`, { type: file.type });
       const chunkText = await readFileAsText(chunkFile);
       
-      const chunkResponse = await chrome.runtime.sendMessage({
-        type: 'STREAM_CHUNK',
-        operation_id: operationId,
-        chunk: chunkText
-      });
-      
-      if (!chunkResponse.success) {
-        throw new Error('Chunk processing failed');
-      }
+      // Update analyzer with processed chunk
+      analyzer = moduleInstance.process_chunk(analyzer, chunkText);
       
       offset += CHUNK_SIZE;
       chunkIndex++;
@@ -697,20 +711,14 @@ async function processFileWithStreaming(file: File): Promise<any> {
     
     updateProgress(95, 'Finalizing analysis...');
     
-    // Finalize
-    const finalizeResponse = await chrome.runtime.sendMessage({
-      type: 'STREAM_FINALIZE',
-      operation_id: operationId
-    });
-    
-    if (finalizeResponse.success) {
-      updateProgress(100, 'Analysis complete!');
-      showResults(finalizeResponse.result, file.name);
-      showNotification(MESSAGES.ANALYSIS_COMPLETE, 'success');
-      return finalizeResponse.result;
-    } else {
-      throw new Error('Streaming finalization failed');
-    }
+    // Finalize locally
+    const raw = moduleInstance.finalize_streaming(analyzer);
+    const stats = moduleInstance.get_streaming_stats(analyzer);
+    const result = normalizeWasmResult(raw, stats);
+    updateProgress(100, 'Analysis complete!');
+    showResults(result, file.name);
+    showNotification(MESSAGES.ANALYSIS_COMPLETE, 'success');
+    return result;
     
   } catch (error) {
     console.error('Streaming analysis failed:', error);
@@ -729,26 +737,90 @@ async function analyzeFile(content: string, fileName: string): Promise<any> {
   document.body.appendChild(progressBar);
   
   try {
-    // Send analysis request to background script
-    const response = await chrome.runtime.sendMessage({
-      type: 'ANALYZE_FILE',
-      data: { content, fileName }
-    });
-    
-    if (response.success) {
-      showResults(response.result, fileName);
-      showNotification(MESSAGES.ANALYSIS_COMPLETE, 'success');
-      return response.result;
-    } else {
-      showNotification(response.error || MESSAGES.ANALYSIS_FAILED, 'error');
-      throw new Error(response.error || 'Analysis failed');
-    }
-    
+    const result = await analyzeFileLocally(content);
+    showResults(result, fileName);
+    showNotification(MESSAGES.ANALYSIS_COMPLETE, 'success');
+    return result;
   } catch (error) {
     console.error('Analysis failed:', error);
     showNotification(MESSAGES.ANALYSIS_FAILED, 'error');
   } finally {
     progressBar.remove();
+  }
+}
+
+async function analyzeFileLocally(content: string): Promise<any> {
+  await ensureWasm();
+  if (!wasmInitialized || !wasmNs) throw new Error('WASM not available');
+  
+  try {
+    const moduleInstance = new (wasmNs as any).WasmModule();
+    const analyzer = moduleInstance.init_streaming();
+    
+    // Process the content
+    const updatedAnalyzer = moduleInstance.process_chunk(analyzer, content);
+    
+    // Finalize and get results
+    const raw = moduleInstance.finalize_streaming(updatedAnalyzer);
+    const stats = moduleInstance.get_streaming_stats(updatedAnalyzer);
+    
+    return normalizeWasmResult(raw, stats);
+  } catch (error) {
+    console.error('[Content] WASM analysis error:', error);
+    throw new Error(`WASM analysis failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+function normalizeWasmResult(raw: any, stats: any) {
+  return {
+    topWords: raw?.top_words ?? [],
+    bannedPhrases: raw?.banned_phrases ?? [],
+    piiPatterns: raw?.pii_patterns ?? [],
+    entropy: raw?.entropy ?? 0,
+    isObfuscated: raw?.is_obfuscated ?? false,
+    decision: raw?.decision ?? 'allow',
+    reason: raw?.reason ?? (Array.isArray(raw?.reasons) ? raw.reasons[0] : 'Analysis complete'),
+    riskScore: raw?.risk_score ?? 0,
+    stats
+  };
+}
+
+async function handleLocalWasmTest(): Promise<any> {
+  try {
+    console.log('[Content] Starting local WASM test...');
+    await ensureWasm();
+    
+    if (!wasmInitialized || !wasmNs) {
+      console.error('[Content] WASM not available for test');
+      return { 
+        success: false, 
+        wasmLoaded: false, 
+        moduleStatus: 'error', 
+        error: 'WASM not available - initialization failed' 
+      };
+    }
+    
+    console.log('[Content] WASM available, running test...');
+    const moduleInstance = new (wasmNs as any).WasmModule();
+    const analyzer = moduleInstance.init_streaming();
+    const updatedAnalyzer = moduleInstance.process_chunk(analyzer, 'test content');
+    const res = moduleInstance.finalize_streaming(updatedAnalyzer);
+    
+    console.log('[Content] WASM test completed successfully');
+    return {
+      success: true,
+      wasmLoaded: true,
+      moduleStatus: 'loaded',
+      testResult: `WASM analysis test passed: ${JSON.stringify(res).substring(0, 100)}...`
+    };
+  } catch (e) {
+    console.error('[Content] WASM test failed:', e);
+    return {
+      success: false,
+      wasmLoaded: false,
+      moduleStatus: 'error',
+      error: e instanceof Error ? e.message : String(e)
+    };
   }
 }
 
@@ -789,7 +861,13 @@ function showResults(result: any, fileName: string) {
 
 // Initialize when DOM is ready
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', setupFileMonitoring);
+  document.addEventListener('DOMContentLoaded', async () => {
+    await setupFileMonitoring();
+    // Send ready signal to test pages
+    window.postMessage({ source: 'squarex-extension', ready: true }, '*');
+  });
 } else {
   setupFileMonitoring();
+  // Send ready signal to test pages
+  window.postMessage({ source: 'squarex-extension', ready: true }, '*');
 }

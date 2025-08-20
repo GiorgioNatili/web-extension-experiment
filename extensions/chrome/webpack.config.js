@@ -1,13 +1,15 @@
 const path = require('path');
+const webpack = require('webpack');
 const CopyPlugin = require('copy-webpack-plugin');
 
 module.exports = {
   entry: {
-    'service-worker': './src/background/service-worker.ts',
-    'content': './src/content/content.ts',
-    'popup': './src/popup/popup.ts',
-    'options': './src/options/options.ts',
+    'service-worker': ['./src/set-public-path.ts', './src/background/service-worker.ts'],
+    'content': ['./src/set-public-path.ts', './src/content/content.ts'],
+    'popup': ['./src/set-public-path.ts', './src/popup/popup.ts'],
+    'options': ['./src/set-public-path.ts', './src/options/options.ts'],
   },
+  target: 'webworker',
   module: {
     rules: [
       {
@@ -32,12 +34,17 @@ module.exports = {
     filename: '[name].js',
     path: path.resolve(__dirname, 'dist'),
     clean: true,
+    globalObject: 'self',
+    publicPath: '',
   },
   mode: 'production',
   optimization: {
     minimize: false, // Keep readable for debugging
+    splitChunks: false,
+    runtimeChunk: false,
   },
   plugins: [
+    new webpack.optimize.LimitChunkCountPlugin({ maxChunks: 1 }),
     new CopyPlugin({
       patterns: [
         { from: 'src/manifest.json', to: 'manifest.json' },

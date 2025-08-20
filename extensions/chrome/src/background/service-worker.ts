@@ -12,24 +12,7 @@ const CHUNK_SIZE = CONFIG.CHUNK_SIZE; // 1MB
 // In-memory storage for streaming operations
 const streamingOperations = new Map<string, any>();
 
-// Initialize WASM module on startup
-async function initializeWASM() {
-  try {
-    console.log('[BG] initializeWASM: starting');
-    await chromeWASMLoader.loadWASMModule();
-    console.log('[BG] initializeWASM: success');
-  } catch (error) {
-    console.error('[BG] initializeWASM: failed', error);
-    // Handle WASM initialization error
-    const recovery = await chromeErrorHandler.handleError(error as Error, { operation: 'wasm_init' });
-    if (!recovery.recovered) {
-      console.error('[BG] initializeWASM: unrecoverable');
-    }
-  }
-}
-
-// Initialize on startup
-initializeWASM();
+// Do not initialize WASM in SW; CSP forbids WASM in MV3 SW. Keep SW lightweight.
 
 // Handle messages from content script
 chrome.runtime.onMessage.addListener((message: any, sender, sendResponse) => {
@@ -37,19 +20,20 @@ chrome.runtime.onMessage.addListener((message: any, sender, sendResponse) => {
   
   switch (message.type) {
     case 'ANALYZE_FILE':
-      handleFileAnalysis(message, sendResponse);
-      return true; // Keep message channel open for async response
+      // Proxy to active tab content script to run WASM locally
+      proxyToActiveTab(message, sendResponse);
+      return true;
       
     case 'STREAM_INIT':
-      handleStreamInit(message, sendResponse);
+      proxyToActiveTab(message, sendResponse);
       return true;
       
     case 'STREAM_CHUNK':
-      handleStreamChunk(message, sendResponse);
+      proxyToActiveTab(message, sendResponse);
       return true;
       
     case 'STREAM_FINALIZE':
-      handleStreamFinalize(message, sendResponse);
+      proxyToActiveTab(message, sendResponse);
       return true;
       
     case 'GET_STATUS':
@@ -57,7 +41,8 @@ chrome.runtime.onMessage.addListener((message: any, sender, sendResponse) => {
         status: 'ready',
         wasm_loaded: chromeWASMLoader.isModuleLoaded(),
         error_stats: chromeErrorHandler.getErrorStats(),
-        module_status: chromeWASMLoader.getModuleStatus()
+        module_status: chromeWASMLoader.getModuleStatus(),
+        debug: chromeWASMLoader.debugIntrospection()
       });
       break;
       
@@ -69,8 +54,8 @@ chrome.runtime.onMessage.addListener((message: any, sender, sendResponse) => {
       break;
       
     case 'TEST_WASM_LOADING':
-      handleWasmTest(sendResponse);
-      return true; // Keep message channel open for async response
+      proxyToActiveTab(message, sendResponse);
+      return true;
       
     default:
       console.warn('Unknown message type:', message.type);
@@ -80,170 +65,25 @@ chrome.runtime.onMessage.addListener((message: any, sender, sendResponse) => {
 /**
  * Handle traditional file analysis (legacy)
  */
-async function handleFileAnalysis(message: any, sendResponse: (response: any) => void) {
+async function proxyToActiveTab(message: any, sendResponse: (response: any) => void) {
   try {
-    console.log('Starting file analysis...');
-    
-    // Ensure WASM module is loaded
-    if (!chromeWASMLoader.isModuleLoaded()) {
-      await chromeWASMLoader.loadWASMModule();
-    }
-    
-    // Create analyzer and process content
-    const analyzer = chromeWASMLoader.createStreamingAnalyzer();
-    analyzer.processChunk(message.data.content);
-    const result = analyzer.finalize();
-    
-    console.log('Analysis complete:', result);
-    sendResponse({ success: true, result });
-    
-  } catch (error) {
-    console.error('Analysis failed:', error);
-    
-    // Handle real errors with recovery
-    const recovery = await chromeErrorHandler.handleError(error as Error, {
-      operation: 'file_analysis',
-      context: { fileName: message.data.fileName }
-    });
-    
-    if (recovery.recovered && recovery.fallbackResult) {
-      sendResponse({ success: true, result: recovery.fallbackResult });
-    } else {
-      sendResponse({ 
-        success: false, 
-        error: (error as Error).message || MESSAGES.ANALYSIS_FAILED 
-      });
-    }
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab?.id) throw new Error('No active tab');
+    const resp = await chrome.tabs.sendMessage(tab.id, message);
+    sendResponse(resp);
+  } catch (e) {
+    sendResponse({ success: false, error: (e as Error).message });
   }
 }
 
 /**
  * Handle stream initialization
  */
-async function handleStreamInit(message: any, sendResponse: (response: any) => void) {
-  try {
-    console.log('Initializing streaming analysis:', message.operation_id);
-    
-    // Validate file size
-    if (message.file.size > MAX_FILE_SIZE) {
-      const error = {
-        code: 'FILE_TOO_LARGE',
-        message: `File size ${message.file.size} exceeds maximum allowed size ${MAX_FILE_SIZE}`,
-        timestamp: Date.now()
-      };
-      
-      sendResponse({
-        success: false,
-        error,
-        retryable: false
-      });
-      return;
-    }
-    
-    // Initialize streaming operation
-    const operation = {
-      id: message.operation_id,
-      file: message.file,
-      config: message.config || {},
-      state: 'processing',
-      stats: {
-        total_chunks: 0,
-        total_content_length: 0,
-        unique_words: 0,
-        banned_phrase_count: 0,
-        pii_pattern_count: 0,
-        processing_time_ms: 0
-      },
-      startTime: Date.now(),
-      lastActivity: Date.now(),
-      content: ''
-    };
-    
-    streamingOperations.set(message.operation_id, operation);
-    
-    console.log('Streaming operation initialized:', operation.id);
-    
-    sendResponse({
-      success: true,
-      operation: {
-        id: operation.id,
-        state: operation.state,
-        config: operation.config
-      }
-    });
-    
-  } catch (error) {
-    console.error('Stream init failed:', error);
-    
-    const wasmError = {
-      code: 'STREAM_INIT_FAILED',
-      message: error instanceof Error ? error.message : 'Unknown error',
-      timestamp: Date.now()
-    };
-    
-    sendResponse({
-      success: false,
-      error: wasmError,
-      retryable: true
-    });
-  }
-}
+// Removed local streaming handlers; handled in content script now
 
 /**
  * Handle stream chunk processing
  */
-async function handleStreamChunk(message: any, sendResponse: (response: any) => void) {
-  try {
-    console.log(`Processing chunk ${message.chunk.index} for operation ${message.operation_id}`);
-    
-    const operation = streamingOperations.get(message.operation_id);
-    if (!operation) {
-      throw new Error('Operation not found');
-    }
-    
-    // Process chunk with timeout
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Chunk processing timeout')), TIMEOUT_MS);
-    });
-    
-    const processPromise = processChunk(operation, message.chunk);
-    
-    const { stats, backpressure } = await Promise.race([processPromise, timeoutPromise]) as any;
-    
-    // Calculate progress
-    const progress = {
-      current_chunk: message.chunk.index + 1,
-      total_chunks: Math.ceil(operation.file.size / CHUNK_SIZE),
-      percentage: Math.round(((message.chunk.index + 1) / Math.ceil(operation.file.size / CHUNK_SIZE)) * 100),
-      stats,
-      estimated_time_ms: calculateEstimatedTime(operation)
-    };
-    
-    console.log(`Chunk ${message.chunk.index} processed successfully`);
-    
-    sendResponse({
-      success: true,
-      progress,
-      backpressure,
-      operation_state: operation.state
-    });
-    
-  } catch (error) {
-    console.error('Stream chunk processing failed:', error);
-    
-    const wasmError = {
-      code: 'STREAM_CHUNK_FAILED',
-      message: error instanceof Error ? error.message : 'Unknown error',
-      timestamp: Date.now()
-    };
-    
-    sendResponse({
-      success: false,
-      error: wasmError,
-      retryable: true
-    });
-  }
-}
 
 /**
  * Process a single chunk
@@ -291,48 +131,7 @@ async function processChunk(operation: any, chunk: any) {
 /**
  * Handle stream finalization
  */
-async function handleStreamFinalize(message: any, sendResponse: (response: any) => void) {
-  try {
-    console.log(`Finalizing streaming analysis for operation ${message.operation_id}`);
-    
-    const operation = streamingOperations.get(message.operation_id);
-    if (!operation) {
-      throw new Error('Operation not found');
-    }
-    
-    // Finalize operation with timeout
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Finalization timeout')), TIMEOUT_MS);
-    });
-    
-    const finalizePromise = finalizeOperation(operation);
-    
-    const result = await Promise.race([finalizePromise, timeoutPromise]) as any;
-    
-    console.log('Streaming analysis finalized successfully');
-    
-    sendResponse({
-      success: true,
-      result,
-      operation_id: message.operation_id
-    });
-    
-  } catch (error) {
-    console.error('Stream finalization failed:', error);
-    
-    const wasmError = {
-      code: 'STREAM_FINALIZE_FAILED',
-      message: error instanceof Error ? error.message : 'Unknown error',
-      timestamp: Date.now()
-    };
-    
-    sendResponse({
-      success: false,
-      error: wasmError,
-      retryable: !message.force
-    });
-  }
-}
+// Removed finalize handler; handled in content script now
 
 /**
  * Finalize streaming operation
@@ -441,7 +240,28 @@ async function handleWasmTest(sendResponse: (response: any) => void) {
     // Test WASM functionality
     let testResult = 'WASM module loaded successfully';
     try {
-      const analyzer = chromeWASMLoader.createStreamingAnalyzer();
+      // Safe analyzer creation: prefer wrapper, fallback to raw WasmModule if needed
+      let analyzer: any;
+      try {
+        analyzer = chromeWASMLoader.createStreamingAnalyzer();
+      } catch (e) {
+        console.warn('[BG] createStreamingAnalyzer failed, attempting raw adapter path');
+        const anyLoader: any = (chromeWASMLoader as any);
+        const mod: any = anyLoader && anyLoader.wasmModule;
+        if (mod && typeof mod.WasmModule === 'function') {
+          const m = new mod.WasmModule();
+          const h = m.init_streaming();
+          analyzer = {
+            processChunk: (chunk: string) => m.process_chunk(h, chunk),
+            finalize: () => ({
+              ...m.finalize_streaming(h),
+              stats: m.get_streaming_stats(h)
+            })
+          };
+        } else {
+          throw e;
+        }
+      }
       analyzer.processChunk('test content');
       const result = analyzer.finalize();
       testResult = `WASM analysis test passed: ${JSON.stringify(result).substring(0, 100)}...`;

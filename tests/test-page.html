@@ -461,12 +461,41 @@
                 console.log('Existing file input intercepted');
             }
             
-            // Update status
-            const extensionStatus = document.getElementById('extension-status');
-            if (extensionStatus) {
-                extensionStatus.innerHTML = '<strong>✅ Extension Available:</strong> Mock extension loaded';
-                extensionStatus.className = 'status success';
-            }
+            // Check for real extension
+            let extensionDetected = false;
+            const checkExtension = () => {
+                // Listen for extension ready signal
+                const readyListener = (ev) => {
+                    const d = ev.data || {};
+                    if (d && d.source === 'squarex-extension' && d.ready) {
+                        extensionDetected = true;
+                        console.log('Real extension detected');
+                        window.removeEventListener('message', readyListener);
+                        
+                        // Update status to show real extension
+                        const extensionStatus = document.getElementById('extension-status');
+                        if (extensionStatus) {
+                            extensionStatus.innerHTML = '<strong>✅ Extension Available:</strong> SquareX File Scanner Extension loaded';
+                            extensionStatus.className = 'status success';
+                        }
+                    }
+                };
+                window.addEventListener('message', readyListener);
+                
+                // Timeout after 3 seconds and fall back to mock
+                setTimeout(() => {
+                    if (!extensionDetected) {
+                        console.log('No real extension detected, using mock');
+                        const extensionStatus = document.getElementById('extension-status');
+                        if (extensionStatus) {
+                            extensionStatus.innerHTML = '<strong>⚠️ Extension Status:</strong> Mock extension loaded (real extension not detected)';
+                            extensionStatus.className = 'status info';
+                        }
+                    }
+                }, 3000);
+            };
+            
+            checkExtension();
         });
         
         // Update file input handling to update upload status

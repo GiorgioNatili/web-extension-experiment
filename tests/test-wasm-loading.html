@@ -66,7 +66,7 @@
         
         <div class="status info">
             <h3>Test Purpose</h3>
-            <p>This page tests WASM loading in the Chrome extension service worker context.</p>
+            <p>This page tests WASM loading in the browser extension background (Chrome/Firefox/Safari).</p>
         </div>
         
         <div id="status" class="status info">
@@ -117,19 +117,23 @@
             updateStatus('Testing WASM loading...', 'info');
             
             try {
-                // Test if extension is available
-                if (typeof chrome === 'undefined' || !chrome.runtime) {
-                    throw new Error('Chrome extension API not available');
-                }
-                
-                log('Chrome extension API available');
-                
+                // Detect environment for clearer messages
+                // Prefer user agent to label the environment (APIs won't be present on a regular page)
+                const ua = navigator.userAgent;
+                const envName = /Firefox/i.test(ua) ? 'Firefox' : /Chrome|Chromium/i.test(ua) ? 'Chrome' : /Safari/i.test(ua) ? 'Safari' : 'Unknown';
+                log(`Detected environment: ${envName}`);
+
                 // Use content-script bridge via window.postMessage to reach background
                 const correlationId = `bridge_${Date.now()}_${Math.random().toString(36).slice(2)}`;
                 const bridgePromise = new Promise((resolve, reject) => {
                     const handler = (ev) => {
                         const d = ev.data || {};
-                        if (d && d.source === 'squarex-extension' && d.correlationId === correlationId) {
+                        if (d && d.source === 'squarex-extension') {
+                            if (d.ready) {
+                                log('Content script bridge ready');
+                                return; // keep listening for the response with our correlationId
+                            }
+                            if (d.correlationId !== correlationId) return;
                             window.removeEventListener('message', handler);
                             if (d.error) reject(new Error(d.error));
                             else resolve(d.response);
@@ -137,34 +141,55 @@
                     };
                     window.addEventListener('message', handler);
                 });
-                window.postMessage({
-                    source: 'squarex-test',
-                    correlationId,
-                    payload: { type: 'TEST_WASM_LOADING' }
-                }, '*');
+                // Timeout if bridge is not connected (no content script)
+                const timeoutMs = 12000;
+                const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Bridge timeout: content script not detected. Ensure the extension is loaded and allowed on this page.')), timeoutMs));
+                // Periodically ping the bridge in case the page loads before the content script
+                let sawReady = false;
+                const readyListener = (ev) => {
+                  const d = ev.data || {};
+                  if (d && d.source === 'squarex-extension' && d.ready) {
+                    sawReady = true;
+                    log('Bridge reported ready');
+                    window.removeEventListener('message', readyListener);
+                  }
+                };
+                window.addEventListener('message', readyListener);
+                const ping = () => window.postMessage({ source: 'squarex-test', correlationId, payload: { type: 'TEST_WASM_LOADING' } }, '*');
+                ping();
+                const pingInterval = setInterval(ping, 1000);
 
-                const response = await bridgePromise;
+                const response = await Promise.race([bridgePromise, timeoutPromise]);
+                clearInterval(pingInterval);
+                window.removeEventListener('message', readyListener);
                 log('Response received from service worker');
                 
-                if (response.success) {
+                if (response && response.success) {
                     log('WASM loading test successful!', 'success');
-                    updateStatus('WASM loading test passed!', 'success');
+                    updateStatus(`WASM loading test passed in ${envName}!`, 'success');
                     
                     // Show detailed results
                     resultsElement.style.display = 'block';
                     resultsContent.innerHTML = `
+                        <p><strong>Environment:</strong> ${envName}</p>
                         <p><strong>WASM Module:</strong> ${response.wasmLoaded ? 'Loaded' : 'Not Loaded'}</p>
                         <p><strong>Module Status:</strong> ${response.moduleStatus}</p>
                         <p><strong>Test Result:</strong> ${response.testResult}</p>
                     `;
+                } else if (response) {
+                    log(`WASM loading test failed in ${envName}: ${response.error}`, 'error');
+                    updateStatus(`WASM loading test failed in ${envName}`, 'error');
                 } else {
-                    log(`WASM loading test failed: ${response.error}`, 'error');
-                    updateStatus('WASM loading test failed', 'error');
+                    log(`WASM loading test failed in ${envName}: empty response from bridge`, 'error');
+                    updateStatus(`WASM loading test failed in ${envName}`, 'error');
                 }
                 
             } catch (error) {
-                log(`Error during WASM test: ${error.message}`, 'error');
-                updateStatus('Error during test', 'error');
+                // Try to tailor the message
+                const ua2 = navigator.userAgent;
+                const envName = /Firefox/i.test(ua2) ? 'Firefox' : /Chrome|Chromium/i.test(ua2) ? 'Chrome' : /Safari/i.test(ua2) ? 'Safari' : 'Unknown';
+                log(`Error during WASM test (${envName}): ${error.message}`, 'error');
+                updateStatus(`Error during test (${envName})`, 'error');
                 console.error('WASM test error:', error);
             }
         }

@@ -184,7 +184,8 @@ export class ChromeErrorHandler {
       const fallbackResult = {
         decision: 'allow',
         reason: 'Analysis completed using fallback method',
-        riskScore: 0.1,
+        // Neutral/unknown risk for fallback; UI should not show a misleading fixed 10%
+        riskScore: 0,
         fallback: true
       };
 

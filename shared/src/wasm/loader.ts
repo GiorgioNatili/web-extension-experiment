@@ -1,9 +1,21 @@
 import { WASMModule, WASMLoader } from './interface';
 
+interface WASMLoaderOptions {
+  // Preloaded wasm-bindgen ESM namespace (with default init and WasmModule)
+  wasmNamespace?: any;
+  // Explicit URL to the wasm binary for initialization
+  wasmBinaryURL?: string;
+}
+
 export class WASMLoaderImpl implements WASMLoader {
   private module: WASMModule | null = null;
   private loading = false;
   private loadPromise: Promise<WASMModule> | null = null;
+  private options?: WASMLoaderOptions;
+
+  constructor(options?: WASMLoaderOptions) {
+    this.options = options;
+  }
 
   async load(): Promise<WASMModule> {
     if (this.module) {
@@ -53,7 +65,17 @@ export class WASMLoaderImpl implements WASMLoader {
       
       // wasmNs is the ESM namespace from wasm-pack glue (exports class WasmModule and default init)
       let wasmNs: any;
-      if (isExtension) {
+
+      // If a preloaded namespace is provided (e.g., MV3 service worker), use it and skip dynamic import
+      if (this.options?.wasmNamespace) {
+        console.log('[WASM] Using injected wasm namespace');
+        wasmNs = this.options.wasmNamespace;
+        const explicitUrl = this.options.wasmBinaryURL;
+        if (typeof wasmNs?.default === 'function') {
+          console.log('[WASM] Initializing injected glue with', explicitUrl || 'no explicit URL');
+          await wasmNs.default({ module_or_path: explicitUrl });
+        }
+      } else if (isExtension) {
         const wasmJsUrl = getURL('wasm.js');
         const wasmBinaryUrl = getURL('wasm_bg.wasm');
         console.log('[WASM] Extension environment URLs:', { wasmJsUrl, wasmBinaryUrl });
@@ -69,7 +91,7 @@ export class WASMLoaderImpl implements WASMLoader {
 
         // Initialize with explicit wasm URL so glue fetches the right file
         console.log('[WASM] Initializing wasm-bindgen glue with wasm URL...');
-        await wasmNs.default(wasmBinaryUrl);
+        await wasmNs.default({ module_or_path: wasmBinaryUrl });
       } else {
         console.log('[WASM] Non-extension environment detected. Dynamic importing local glue...');
         wasmNs = await import('../../../wasm/pkg/wasm.js');
