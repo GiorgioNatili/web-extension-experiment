@@ -154,27 +154,31 @@ async function handleFileAnalysis(message: any, sendResponse: (response: any) =>
     const rawResult = moduleInstance.finalize_streaming(analyzer);
     const stats = moduleInstance.get_streaming_stats(analyzer);
     
-    // Normalize result to match expected format
-    const result = {
-      topWords: rawResult?.top_words ?? [],
-      bannedPhrases: rawResult?.banned_phrases ?? [],
-      piiPatterns: rawResult?.pii_patterns ?? [],
-      entropy: rawResult?.entropy ?? 0,
-      isObfuscated: rawResult?.is_obfuscated ?? false,
-      decision: rawResult?.decision ?? 'allow',
-      reason: rawResult?.reason ?? 'Analysis complete',
-      riskScore: rawResult?.risk_score ?? 0,
-      stats: {
-        totalChunks: 1,
-        totalContent: message.data.content.length,
-        processingTime: Date.now() - Date.now(),
-        performance: {
-          timing: { total_time: stats?.total_time || 0 },
-          memory: { peak_memory: stats?.peak_memory || 0 },
-          throughput: { bytes_per_second: stats?.bytes_per_second || 0 }
+    // Use Chrome's normalization function for consistent results
+    const normalizeWasmResult = (raw: any, stats: any) => {
+      return {
+        topWords: raw?.top_words ?? [],
+        bannedPhrases: raw?.banned_phrases ?? [],
+        piiPatterns: raw?.pii_patterns ?? [],
+        entropy: raw?.entropy ?? 0,
+        isObfuscated: raw?.is_obfuscated ?? false,
+        decision: raw?.decision ?? 'allow',
+        reason: raw?.reason ?? (Array.isArray(raw?.reasons) ? raw.reasons[0] : 'Analysis complete'),
+        riskScore: raw?.risk_score ?? 0,
+        stats: {
+          totalChunks: 1,
+          totalContent: message.data.content.length,
+          processingTime: Date.now() - Date.now(),
+          performance: {
+            timing: { total_time: stats?.total_time || 0 },
+            memory: { peak_memory: stats?.peak_memory || 0 },
+            throughput: { bytes_per_second: stats?.bytes_per_second || 0 }
+          }
         }
-      }
+      };
     };
+
+    const result = normalizeWasmResult(rawResult, stats);
     
     console.log('Analysis complete:', result);
     sendResponse({ success: true, result });
