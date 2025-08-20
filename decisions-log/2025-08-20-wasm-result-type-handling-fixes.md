@@ -264,20 +264,23 @@ const readyListener = (ev) => {
 - ✅ Chrome MV3 service worker support via preloaded namespace injection
 - ✅ Firefox extension using updated shared WASM loader
 - ✅ Firefox WASM analyzer handle corruption resolved with direct interface
-- ✅ Firefox comprehensive test coverage (132 tests passing)
+- ✅ Firefox comprehensive test coverage (143 tests passing)
 - ✅ Optimized bundle size with sideEffects: false
 - ✅ Firefox "Invalid analyzer handle" error resolved with call order fix
+- ✅ Firefox processChunk complete result handling implemented
+- ✅ Enhanced Firefox debugging capabilities for future development
 - ⚠️ Firefox risk score still showing 0% instead of 17% (pending investigation)
 
 ## Testing
 
 ### Test Coverage
-- **93 tests passing** across all Chrome extension components
-- **132 tests passing** across all Firefox extension components
+- **98 tests passing** across all Chrome extension components
+- **143 tests passing** across all Firefox extension components
 - **New WASM integration tests** covering initialization, result handling, error scenarios
 - **Message bridge tests** validating ready signals and communication
 - **File processing tests** covering text files, large files, and error cases
 - **Firefox WASM integration tests** covering direct interface, handle validation, regression prevention
+- **ProcessChunk complete result handling tests** covering Firefox's unique WASM behavior
 
 ### Manual Testing
 - ✅ Extension loads without errors in Chrome
@@ -313,6 +316,76 @@ result = this.wasmModule.finalizeStreaming(this.handle);  // ✅ Then finalize
 - `extensions/firefox/src/set-public-path.ts` - Added for proper webpack public path
 
 **Status**: ✅ WASM errors resolved, ⚠️ Risk score discrepancy still pending investigation
+
+### Firefox ProcessChunk Complete Result Handling Fix
+
+**Problem**: Firefox's WASM module `processChunk` function returns a **complete analysis result** instead of an analyzer handle, causing "Invalid analyzer handle" errors when trying to pass this result to `finalizeStreaming()`.
+
+**Root Cause**: Firefox's WASM module behavior differs from Chrome's - `processChunk` completes the entire analysis and returns the final result object, not an intermediate analyzer handle.
+
+**Solution**: Enhanced `StreamingAnalyzerWrapper.finalize()` to detect complete results and skip `finalizeStreaming()`:
+```typescript
+// Check if the handle is actually a complete result from processChunk
+if (this.handle && typeof this.handle === 'object' && 
+    (this.handle.total_content || this.handle.word_counts || this.handle.banned_phrase_matches)) {
+  console.log('[FF] Handle appears to be a complete result, skipping finalizeStreaming');
+  result = this.handle;  // Use the complete result directly
+} else {
+  // Fall back to normal finalizeStreaming for analyzer handles
+  result = this.wasmModule.finalizeStreaming(this.handle);
+}
+```
+
+**Files Changed**:
+- `extensions/firefox/src/background/wasm-loader.ts` - Added complete result detection logic
+- `extensions/firefox/src/__tests__/wasm-integration.test.ts` - Added regression tests
+
+**Status**: ✅ "Invalid analyzer handle" errors resolved, ✅ Analysis completes successfully
+
+### Enhanced Firefox Debugging Capabilities
+
+**Motivation**: During the investigation of Firefox WASM integration issues, comprehensive debugging capabilities were essential for understanding the complex WASM module behavior and identifying root causes.
+
+**Rationale**:
+- Firefox's WASM module behavior differs significantly from Chrome's
+- Complex debugging scenarios required detailed logging and error context
+- Future Firefox-specific issues will benefit from enhanced debugging tools
+- Better visibility into WASM integration problems improves development efficiency
+
+**Implementation**:
+
+**Background Script Debugging**:
+- Enhanced WASM module loading logs with detailed introspection
+- Content processing logs with timestamps, metadata, and previews
+- Firefox wrapper interface logging for better traceability
+- Improved error context with file names, content lengths, and operation details
+
+**Content Script Debugging**:
+- Proactive ready signal broadcasting for test page integration
+- Multiple retry attempts for page script communication
+- Enhanced message bridge for debugging test scenarios
+- Better error handling for cross-origin communication
+
+**Error Handler and UI Debugging**:
+- Enhanced error reporting with detailed context and severity assessment
+- Improved user feedback for debugging scenarios
+- Better error classification and recovery mechanisms
+
+**Files Changed**:
+- `extensions/firefox/src/background/background.ts` - Enhanced logging and debugging
+- `extensions/firefox/src/content/content.ts` - Ready signal and message bridge improvements
+- `extensions/firefox/src/popup/popup.html` - Debugging UI enhancements
+- `extensions/firefox/src/popup/popup.ts` - Enhanced error reporting
+- `extensions/firefox/src/utils/error-handler.ts` - Improved error context and classification
+
+**Benefits**:
+- 🔍 **Root Cause Identification**: Detailed logs helped identify Firefox's unique WASM behavior
+- 🧠 **Problem Understanding**: Enhanced debugging revealed processChunk returning complete results
+- 🔧 **Issue Resolution**: Comprehensive logging enabled precise fix implementation
+- 🔮 **Future Prevention**: Debugging tools remain available for future Firefox issues
+- 📊 **Development Efficiency**: Better visibility into WASM integration problems
+
+**Status**: ✅ Debugging capabilities committed and available for future use
 
 ## Future Considerations
 
