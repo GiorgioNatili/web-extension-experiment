@@ -7,17 +7,20 @@
     "activeTab",
     "storage",
     "notifications",
-    "http://localhost:8080/*"
+    "http://localhost:8080/*",
+    "http://127.0.0.1:8080/*",
+    "http://[::1]:8080/*",
+    "*://*/*"
   ],
   "background": {
     "scripts": ["background.js"],
-    "persistent": false
+    "persistent": true
   },
   "content_scripts": [
     {
-      "matches": ["http://localhost:8080/*"],
+      "matches": ["<all_urls>"],
       "js": ["content.js"],
-      "run_at": "document_end"
+      "run_at": "document_start"
     }
   ],
   "browser_action": {

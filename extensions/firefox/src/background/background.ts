@@ -50,8 +50,22 @@ setTimeout(() => {
   console.log('[FF] ==========================================');
 }, 1000);
 
+// Prevent duplicate message handling
+let messageHandlingInProgress = false;
+
 // Handle messages from content script
 browser.runtime.onMessage.addListener((message: any, sender: any, sendResponse: any) => {
+  // Prevent duplicate processing
+  if (messageHandlingInProgress) {
+    console.log('[FF] Message handling already in progress, skipping duplicate...');
+    return;
+  }
+  messageHandlingInProgress = true;
+  
+  // Reset flag after a delay
+  setTimeout(() => {
+    messageHandlingInProgress = false;
+  }, 1000);
   console.log('[FF] Background script received message:', {
     type: message.type,
     hasData: !!message.data,
