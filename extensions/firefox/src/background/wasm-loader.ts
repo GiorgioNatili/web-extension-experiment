@@ -273,8 +273,9 @@ class StreamingAnalyzerWrapper {
     let stats: any;
     
     try {
-      result = this.wasmModule.finalizeStreaming(this.handle);
+      // Get stats BEFORE finalizing (handle becomes invalid after finalize)
       stats = this.wasmModule.getStreamingStats(this.handle);
+      result = this.wasmModule.finalizeStreaming(this.handle);
     } catch (error) {
       // Enhanced error logging for Firefox debugging
       console.error('[FF] Detailed WASM finalize error:', {
