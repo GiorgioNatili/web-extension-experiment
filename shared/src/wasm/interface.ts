@@ -1,4 +1,4 @@
-import { AnalysisResult, AnalysisRequest } from '../types/analysis';
+// The WASM interfaces and normalized result types used by the wrapper
 
 export interface WASMModule {
   analyzeFile(content: string): Promise<AnalysisResult>;

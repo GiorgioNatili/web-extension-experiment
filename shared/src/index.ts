@@ -2,7 +2,8 @@
 export * from './types/analysis';
 export * from './types/browser';
 export * from './types/common';
-export * from './wasm/interface';
+// Avoid duplicate type re-exports; expose WASM interfaces explicitly
+export type { WASMModule as SharedWASMModule, WASMLoader as SharedWASMLoader } from './wasm/interface';
 export * from './wasm/loader';
 export * from './wasm/streaming-interface';
 export * from './wasm/streaming-loader';
