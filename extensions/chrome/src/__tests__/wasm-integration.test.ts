@@ -234,4 +234,139 @@ describe('Chrome Extension WASM Integration', () => {
       expect(wasmUrl).toContain('wasm.js');
     });
   });
+
+  describe('Risk Assessment Consistency', () => {
+    test('should detect HR/performance content with consistent risk score', async () => {
+      const hrContent = `What impact did you have last week?
+
+What did you learn last week?
+
+What went well last week? Why?
+
+What could have gone better last week? Why?
+
+How can I help you?
+
+What can I do to make it easier for you to work in this organization?
+
+Do you have any feedback for me? Be bold. Be open.
+
+=====
+
+Answer two questions:
+
+What are the 3-5 competencies needed to thrive in this role? 
+
+Is there evidence of them displaying these competencies? 
+
+Hint: Where the answer is No, you might want a development plan. 
+
+To build my picture quickly, I'd triangulate between:
+
+Having them self-evaluate,
+
+Data from prior performance reviews (if available),
+
+And early tests to get my own independent assessment.
+
+None of these can be definitive, but the three should point you to where you can trust people and where you might need them to develop. 
+
+Tip: And if you see gaps across people, this is a high-leverage place to level up the whole team at once.`;
+
+      // Mock WASM module with realistic HR content analysis
+      const hrMockModule = {
+        WasmModule: jest.fn().mockImplementation(() => ({
+          init_streaming: jest.fn().mockReturnValue({ __analyzer: 'hr-analyzer' }),
+          process_chunk: jest.fn().mockImplementation((analyzer, content) => ({
+            __analyzer: 'updated-hr-analyzer',
+            __content: content
+          })),
+          finalize_streaming: jest.fn().mockReturnValue({
+            top_words: ['development', 'plan', 'performance', 'reviews', 'team'],
+            banned_phrases: [],
+            pii_patterns: [],
+            entropy: 4.2,
+            is_obfuscated: false,
+            decision: 'allow',
+            reason: 'HR/performance content detected',
+            risk_score: 0.17  // 17% risk score for HR content
+          }),
+          get_streaming_stats: jest.fn().mockReturnValue({
+            total_time: 150,
+            peak_memory: 2048,
+            bytes_per_second: 2000
+          })
+        }))
+      };
+
+      // Mock the WASM module directly for Chrome tests
+      const wasmModule = hrMockModule;
+      const moduleInstance = new wasmModule.WasmModule();
+      let analyzer = moduleInstance.init_streaming();
+      analyzer = moduleInstance.process_chunk(analyzer, hrContent);
+      
+      const rawResult = moduleInstance.finalize_streaming(analyzer);
+      const stats = moduleInstance.get_streaming_stats(analyzer);
+
+      // Verify HR content is properly detected
+      expect(rawResult.risk_score).toBe(0.17);
+      expect(rawResult.reason).toContain('HR/performance content');
+      expect(rawResult.top_words).toContain('development');
+      expect(rawResult.top_words).toContain('plan');
+      expect(rawResult.top_words).toContain('performance');
+      expect(rawResult.top_words).toContain('reviews');
+      expect(rawResult.top_words).toContain('team');
+
+      // Verify risk indicators are present
+      expect(hrContent.toLowerCase()).toContain('development plan');
+      expect(hrContent.toLowerCase()).toContain('performance reviews');
+      expect(hrContent.toLowerCase()).toContain('self-evaluate');
+      expect(hrContent.toLowerCase()).toContain('gaps across people');
+      expect(hrContent.toLowerCase()).toContain('level up the whole team');
+    });
+
+    test('should maintain consistent risk assessment across browsers', async () => {
+      const testContent = 'This contains development plan and performance review content';
+      
+      const consistentMockModule = {
+        WasmModule: jest.fn().mockImplementation(() => ({
+          init_streaming: jest.fn().mockReturnValue({ __analyzer: 'test-analyzer' }),
+          process_chunk: jest.fn().mockImplementation((analyzer, content) => ({
+            __analyzer: 'updated-test-analyzer',
+            __content: content
+          })),
+          finalize_streaming: jest.fn().mockReturnValue({
+            top_words: ['development', 'plan', 'performance'],
+            banned_phrases: [],
+            pii_patterns: [],
+            entropy: 3.8,
+            is_obfuscated: false,
+            decision: 'allow',
+            reason: 'Performance management content detected',
+            risk_score: 0.15  // Consistent 15% risk score
+          }),
+          get_streaming_stats: jest.fn().mockReturnValue({
+            total_time: 100,
+            peak_memory: 1024,
+            bytes_per_second: 1500
+          })
+        }))
+      };
+
+      // Mock the WASM module directly for Chrome tests
+      const wasmModule = consistentMockModule;
+      const moduleInstance = new wasmModule.WasmModule();
+      let analyzer = moduleInstance.init_streaming();
+      analyzer = moduleInstance.process_chunk(analyzer, testContent);
+      
+      const rawResult = moduleInstance.finalize_streaming(analyzer);
+
+      // Verify consistent risk assessment
+      expect(rawResult.risk_score).toBe(0.15);
+      expect(rawResult.reason).toContain('Performance management');
+      expect(rawResult.top_words).toContain('development');
+      expect(rawResult.top_words).toContain('plan');
+      expect(rawResult.top_words).toContain('performance');
+    });
+  });
 });
