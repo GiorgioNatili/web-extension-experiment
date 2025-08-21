@@ -226,11 +226,30 @@ function createResultsPanel(): void {
   header.appendChild(closeButton);
   resultsPanel.appendChild(header);
 
+  // Add welcome message and instructions
+  const welcomeDiv = document.createElement('div');
+  welcomeDiv.style.cssText = `
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    margin-bottom: 20px;
+    border-left: 4px solid #007bff;
+  `;
+  welcomeDiv.innerHTML = `
+    <h4 style="margin: 0 0 10px 0; color: #007bff;">Welcome to SquareX File Scanner</h4>
+    <p style="margin: 0; font-size: 13px; color: #666;">
+      This extension monitors file uploads and analyzes them for security risks.
+      Upload a text file to see analysis results here.
+    </p>
+  `;
+  resultsPanel.appendChild(welcomeDiv);
+
   // Add results table
   const resultsTable = createResultsTable();
   resultsPanel.appendChild(resultsTable);
 
   document.body.appendChild(resultsPanel);
+  console.log('[FF] Results panel created and visible');
 }
 
 /**
@@ -1085,7 +1104,10 @@ async function handleFileSelect(event: Event): Promise<void> {
  * Monitor file uploads
  */
 function monitorFileUploads(): void {
+  console.log('[FF] Setting up file monitoring...');
+  
   const fileInputs = document.querySelectorAll('input[type="file"]');
+  console.log('[FF] Found', fileInputs.length, 'file inputs');
   
   fileInputs.forEach(input => {
     interceptFileInput(input as HTMLInputElement); // Intercept file inputs
@@ -1117,6 +1139,11 @@ observer.observe(document.body, {
   
   // Add UI mode toggle (compact vs sidebar)
   addUIModeToggle();
+  
+  // Create initial results panel for visibility
+  createResultsPanel();
+  
+  console.log('[FF] File monitoring setup complete');
 }
 
 /**
@@ -1151,10 +1178,42 @@ function addUIModeToggle(): void {
     // Recreate results panel with new mode
     createResultsPanel();
     
-    showNotification(`Switched to ${uiMode} UI mode`, 'info');
+    showNotification(`Switched to ${uiMode} UI mode`, 'success');
+  });
+  
+  // Add a button to show results panel if it's closed
+  const showPanelButton = document.createElement('div');
+  showPanelButton.id = 'squarex-show-panel';
+  showPanelButton.style.cssText = `
+    position: fixed;
+    bottom: 20px;
+    right: 200px;
+    background: #28a745;
+    color: white;
+    padding: 10px 15px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: bold;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 10002;
+    user-select: none;
+  `;
+  showPanelButton.textContent = 'Show Results Panel';
+  showPanelButton.setAttribute('role', 'button');
+  showPanelButton.setAttribute('aria-label', 'Show the SquareX results panel');
+  
+  showPanelButton.addEventListener('click', () => {
+    if (!resultsPanel) {
+      createResultsPanel();
+      showNotification('Results panel opened', 'success');
+    } else {
+      showNotification('Results panel is already visible', 'success');
+    }
   });
   
   document.body.appendChild(toggle);
+  document.body.appendChild(showPanelButton);
 }
 
 // Initialize when DOM is ready
