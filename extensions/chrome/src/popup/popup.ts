@@ -8,6 +8,7 @@ let testWasmButton: HTMLButtonElement | null = null;
 let statusElement: HTMLElement | null = null;
 let wasmStatusElement: HTMLElement | null = null;
 let errorStatsElement: HTMLElement | null = null;
+let latestResultsElement: HTMLElement | null = null;
 
 // Initialize popup
 async function initializePopup() {
@@ -19,6 +20,7 @@ async function initializePopup() {
   statusElement = document.getElementById('status');
   wasmStatusElement = document.getElementById('wasmStatus');
   errorStatsElement = document.getElementById('errorStats');
+  latestResultsElement = document.getElementById('latestResults');
   
   // Load current settings
   const result = await chrome.storage.local.get(['scannerEnabled', 'entropyThreshold']);
@@ -33,8 +35,9 @@ async function initializePopup() {
     testWasmButton.addEventListener('click', triggerWasmTest);
   }
   
-  // Check extension status
+  // Check extension status and get latest results
   await updateStatus();
+  await updateLatestResults();
 }
 
 // Trigger background WASM loading test
@@ -47,6 +50,7 @@ async function triggerWasmTest() {
     const response = await chrome.runtime.sendMessage({ type: 'TEST_WASM_LOADING' });
     console.log('WASM test response:', response);
     await updateStatus();
+    await updateLatestResults();
     if (testWasmButton) {
       testWasmButton.textContent = 'Test WASM';
     }
@@ -126,6 +130,41 @@ async function updateStatus() {
     if (statusElement) {
       statusElement.textContent = 'Error';
       statusElement.className = 'status error';
+    }
+  }
+}
+
+// Update latest results display
+async function updateLatestResults() {
+  try {
+    // Get latest analysis results from storage
+    const result = await chrome.storage.local.get(['latestAnalysisResult']);
+    
+    if (latestResultsElement && result.latestAnalysisResult) {
+      const analysis = result.latestAnalysisResult;
+      const riskScore = (analysis.riskScore || analysis.risk_score || 0) * 100;
+      const decision = analysis.decision || 'allow';
+      const fileName = analysis.fileName || 'Unknown file';
+      const reason = analysis.reason || 'Analysis complete';
+      
+      latestResultsElement.innerHTML = `
+        <h4>Latest Analysis</h4>
+        <p><strong>File:</strong> ${fileName}</p>
+        <p><strong>Decision:</strong> ${decision === 'allow' ? 'Allowed' : 'Blocked'}</p>
+        <p><strong>Risk Score:</strong> ${riskScore.toFixed(0)}%</p>
+        <p><strong>Reason:</strong> ${reason}</p>
+        <p><strong>Time:</strong> ${new Date(analysis.timestamp || Date.now()).toLocaleTimeString()}</p>
+      `;
+      latestResultsElement.className = 'status success';
+    } else if (latestResultsElement) {
+      latestResultsElement.innerHTML = '<h4>Latest Analysis</h4><p>No recent analysis results</p>';
+      latestResultsElement.className = 'status info';
+    }
+  } catch (error) {
+    console.error('Failed to update latest results:', error);
+    if (latestResultsElement) {
+      latestResultsElement.innerHTML = '<h4>Latest Analysis</h4><p>Error loading results</p>';
+      latestResultsElement.className = 'status error';
     }
   }
 }

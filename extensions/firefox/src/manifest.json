@@ -32,7 +32,10 @@
     "wasm/*"
   ],
   "icons": {
-    "48": "icons/icon-48.png",
-    "96": "icons/icon-96.png"
+    "16": "icons/icon16.svg",
+    "32": "icons/icon32.svg",
+    "48": "icons/icon48.svg",
+    "96": "icons/icon96.svg",
+    "128": "icons/icon128.svg"
   }
 }

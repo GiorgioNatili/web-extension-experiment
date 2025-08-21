@@ -45,6 +45,8 @@ module.exports = (env, argv) => {
           // Copy WASM files for dynamic import
           { from: '../../wasm/pkg/wasm_bg.wasm', to: 'wasm_bg.wasm' },
           { from: '../../wasm/pkg/wasm.js', to: 'wasm.js' },
+          // Copy icon files
+          { from: 'src/icons', to: 'icons' },
         ],
       }),
     ],

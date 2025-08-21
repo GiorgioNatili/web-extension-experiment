@@ -42,6 +42,26 @@ async function initializeWASM() {
 // Initialize on startup
 initializeWASM();
 
+// Send ready signal immediately
+console.log('[FF] Sending immediate ready signal');
+try {
+  browser.tabs.query({}).then((tabs: any[]) => {
+    tabs.forEach((tab: any) => {
+      if (tab.id) {
+        browser.tabs.sendMessage(tab.id, { 
+          type: 'EXTENSION_READY',
+          source: 'squarex-extension',
+          ready: true 
+        }).catch(() => {
+          // Ignore errors for tabs that don't have content scripts
+        });
+      }
+    });
+  });
+} catch (error) {
+  console.error('[FF] Error sending immediate ready signal:', error);
+}
+
 // Test message listener is working
 setTimeout(() => {
   console.log('[FF] ==========================================');
@@ -49,6 +69,23 @@ setTimeout(() => {
   console.log('[FF] If you see this message, the background script is working!');
   console.log('[FF] ==========================================');
 }, 1000);
+
+// Send ready signal to all tabs
+setTimeout(() => {
+  browser.tabs.query({}).then((tabs: any[]) => {
+    tabs.forEach((tab: any) => {
+      if (tab.id) {
+        browser.tabs.sendMessage(tab.id, { 
+          type: 'EXTENSION_READY',
+          source: 'squarex-extension',
+          ready: true 
+        }).catch(() => {
+          // Ignore errors for tabs that don't have content scripts
+        });
+      }
+    });
+  });
+}, 2000);
 
 // Prevent duplicate message handling
 let messageHandlingInProgress = false;

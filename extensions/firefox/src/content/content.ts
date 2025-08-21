@@ -40,6 +40,16 @@ try {
   window.postMessage({ source: 'squarex-extension', ready: true }, '*');
 } catch (_) {}
 
+// Listen for extension ready signal from background script
+browser.runtime.onMessage.addListener((message: any) => {
+  if (message.type === 'EXTENSION_READY' && message.source === 'squarex-extension') {
+    console.log('[FF] Received extension ready signal from background script');
+    try {
+      window.postMessage({ source: 'squarex-extension', ready: true }, '*');
+    } catch (_) {}
+  }
+});
+
 // Configuration
 const CHUNK_SIZE = CONFIG.CHUNK_SIZE; // 1MB chunks
 
@@ -838,22 +848,32 @@ async function processFileWithStreaming(file: File): Promise<void> {
     
     // Show results
     showResults(finalizeResponse.result, file.name);
+    
+    // Update test results with proper error handling
     try {
       const testResults = document.getElementById('test-results');
       if (testResults) {
         const risk = (typeof finalizeResponse.result?.riskScore === 'number')
           ? finalizeResponse.result.riskScore
           : (typeof finalizeResponse.result?.risk_score === 'number' ? finalizeResponse.result.risk_score : 0);
+        const decision = finalizeResponse.result?.decision || 'allow';
+        const reason = finalizeResponse.result?.reason || 'Analysis complete';
+        
         testResults.innerHTML = `
           <div class="status success">
             <h4>Analysis Complete</h4>
             <p><strong>File:</strong> ${file.name}</p>
             <p><strong>Risk Score:</strong> ${(risk * 100).toFixed(0)}%</p>
-            <p><strong>Decision:</strong> ${finalizeResponse.result?.decision || 'allow'}</p>
+            <p><strong>Decision:</strong> ${decision === 'allow' ? 'Allowed' : 'Blocked'}</p>
+            <p><strong>Reason:</strong> ${reason}</p>
+            <p><strong>Time:</strong> ${new Date().toLocaleTimeString()}</p>
           </div>
         `;
+        console.log('[FF] Test results updated successfully');
       }
-    } catch (_) {}
+    } catch (error) {
+      console.error('[FF] Failed to update test results:', error);
+    }
     
     if (finalizeResponse.fallback) {
       showNotification('Analysis completed using fallback method', 'info');
@@ -899,6 +919,36 @@ async function processFileWithStreaming(file: File): Promise<void> {
  * Show analysis results
  */
 function showResults(result: any, fileName: string): void {
+  // Store latest analysis result for consistency
+  const analysisResult = {
+    ...result,
+    fileName,
+    timestamp: Date.now()
+  };
+  browser.storage.local.set({ latestAnalysisResult: analysisResult });
+  
+  // Update the test page's results element if it exists
+  const testResults = document.getElementById('test-results');
+  if (testResults) {
+    const normalizedRisk = (typeof result?.riskScore === 'number')
+      ? result.riskScore
+      : (typeof result?.risk_score === 'number' ? result.risk_score : 0);
+    const decision = result.decision || 'allow';
+    const reason = result.reason || 'Analysis complete';
+    
+    testResults.innerHTML = `
+      <div class="status success">
+        <h4>Analysis Complete</h4>
+        <p><strong>File:</strong> ${fileName}</p>
+        <p><strong>Risk Score:</strong> ${(normalizedRisk * 100).toFixed(0)}%</p>
+        <p><strong>Decision:</strong> ${decision === 'allow' ? 'Allowed' : 'Blocked'}</p>
+        <p><strong>Reason:</strong> ${reason}</p>
+        <p><strong>Time:</strong> ${new Date().toLocaleTimeString()}</p>
+      </div>
+    `;
+    console.log('[Firefox] Updated test-results element with analysis data');
+  }
+  
   // Normalize fields across snake/camel
   const normalizedRisk = (typeof result?.riskScore === 'number')
     ? result.riskScore
@@ -995,22 +1045,32 @@ async function handleFileSelect(event: Event): Promise<void> {
       if (response.success) {
         showResults(response.result, file.name);
         showNotification(MESSAGES.ANALYSIS_COMPLETE, 'success');
+        
+        // Update test results with proper error handling
         try {
           const testResults = document.getElementById('test-results');
           if (testResults) {
             const risk = (typeof response.result?.riskScore === 'number')
               ? response.result.riskScore
               : (typeof response.result?.risk_score === 'number' ? response.result.risk_score : 0);
+            const decision = response.result?.decision || 'allow';
+            const reason = response.result?.reason || 'Analysis complete';
+            
             testResults.innerHTML = `
               <div class="status success">
                 <h4>Analysis Complete</h4>
                 <p><strong>File:</strong> ${file.name}</p>
                 <p><strong>Risk Score:</strong> ${(risk * 100).toFixed(0)}%</p>
-                <p><strong>Decision:</strong> ${response.result?.decision || 'allow'}</p>
+                <p><strong>Decision:</strong> ${decision === 'allow' ? 'Allowed' : 'Blocked'}</p>
+                <p><strong>Reason:</strong> ${reason}</p>
+                <p><strong>Time:</strong> ${new Date().toLocaleTimeString()}</p>
               </div>
             `;
+            console.log('[FF] Test results updated successfully (traditional analysis)');
           }
-        } catch (_) {}
+        } catch (error) {
+          console.error('[FF] Failed to update test results (traditional analysis):', error);
+        }
       } else {
         showNotification(response.error || MESSAGES.ANALYSIS_FAILED, 'error');
       }

@@ -825,6 +825,35 @@ async function handleLocalWasmTest(): Promise<any> {
 }
 
 function showResults(result: any, fileName: string) {
+  // Store latest analysis result for popup access
+  const analysisResult = {
+    ...result,
+    fileName,
+    timestamp: Date.now()
+  };
+  chrome.storage.local.set({ latestAnalysisResult: analysisResult });
+  
+  // Update the test page's results element if it exists
+  const testResults = document.getElementById('test-results');
+  if (testResults) {
+    const riskScore = ((result.riskScore || 0) * 100).toFixed(0);
+    const decision = result.decision || 'allow';
+    const reason = result.reason || 'Analysis complete';
+    
+    testResults.innerHTML = `
+      <div class="status success">
+        <h4>Analysis Complete</h4>
+        <p><strong>File:</strong> ${fileName}</p>
+        <p><strong>Risk Score:</strong> ${riskScore}%</p>
+        <p><strong>Decision:</strong> ${decision === 'allow' ? 'Allowed' : 'Blocked'}</p>
+        <p><strong>Reason:</strong> ${reason}</p>
+        <p><strong>Time:</strong> ${new Date().toLocaleTimeString()}</p>
+      </div>
+    `;
+    console.log('[Chrome] Updated test-results element with analysis data');
+  }
+  
+  // Also create the extension's own results display
   const container = createElement('div', 'squarex-results');
   container.innerHTML = `
     <h3>Analysis Results for ${fileName}</h3>
