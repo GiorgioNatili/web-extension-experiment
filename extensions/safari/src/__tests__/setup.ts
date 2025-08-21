@@ -1,7 +1,7 @@
 // Safari extension test setup
 
 // Mock browser API globally
-global.browser = {
+(global as any).browser = {
   runtime: {
     onMessage: {
       addListener: jest.fn()

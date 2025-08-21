@@ -196,11 +196,11 @@ export class SafariErrorHandler {
         throw new Error(`Retry attempt ${errorInfo.retryCount + 1} failed`);
       }
       
-    } catch (retryError) {
+    } catch (retryError: unknown) {
       return {
         recovered: false,
         strategy: RecoveryStrategy.RETRY,
-        message: `Retry attempt ${errorInfo.retryCount + 1} failed: ${retryError.message}`
+        message: `Retry attempt ${errorInfo.retryCount + 1} failed: ${(retryError as Error).message}`
       };
     }
   }
@@ -219,11 +219,11 @@ export class SafariErrorHandler {
         fallbackUsed: true
       };
       
-    } catch (fallbackError) {
+    } catch (fallbackError: unknown) {
       return {
         recovered: false,
         strategy: RecoveryStrategy.FALLBACK,
-        message: `Fallback operation failed: ${fallbackError.message}`
+        message: `Fallback operation failed: ${(fallbackError as Error).message}`
       };
     }
   }

@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Safari Extension Simple Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .status.success { background-color: #d4edda; border-left: 4px solid #28a745; }
+        .status.error { background-color: #f8d7da; border-left: 4px solid #dc3545; }
+        .status.info { background-color: #e3f2fd; border-left: 4px solid #007bff; }
+        .log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Safari Extension Simple Test</h1>
+        
+        <div id="status" class="status info">
+            Testing Safari extension detection...
+        </div>
+        
+        <div id="log" class="log">
+            Starting simple detection test...\n
+        </div>
+        
+        <div id="results" class="status info" style="display: none;">
+            <h3>Test Results</h3>
+            <div id="results-content"></div>
+        </div>
+    </div>
+
+    <script>
+        const logElement = document.getElementById('log');
+        const statusElement = document.getElementById('status');
+        const resultsElement = document.getElementById('results');
+        const resultsContent = document.getElementById('results-content');
+
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            logElement.textContent += `[${timestamp}] ${message}\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+            console.log(`[SIMPLE TEST] ${message}`);
+        }
+
+        function updateStatus(message, type = 'info') {
+            statusElement.textContent = message;
+            statusElement.className = `status ${type}`;
+        }
+
+        // Simple detection tests
+        let extensionFound = false;
+        let detectionResults = [];
+
+        function testDetection() {
+            log('=== Starting Simple Detection Tests ===');
+            
+            // Test 1: Check if content script console logs appear
+            log('Test 1: Looking for content script console logs...');
+            log('Check Safari Console for "[Safari]" messages');
+            
+            // Test 2: Check window properties
+            if (window.squarexExtensionLoaded) {
+                log('✅ Test 2: window.squarexExtensionLoaded = true');
+                detectionResults.push('Window Property');
+                extensionFound = true;
+            } else {
+                log('❌ Test 2: window.squarexExtensionLoaded not found');
+            }
+            
+            // Test 3: Check for fallback script
+            if (window.squarexExtensionFallback) {
+                log('✅ Test 3: window.squarexExtensionFallback = true');
+                detectionResults.push('Fallback Script');
+                extensionFound = true;
+            } else {
+                log('❌ Test 3: window.squarexExtensionFallback not found');
+            }
+            
+            // Test 4: Check DOM for signal element
+            const signalElement = document.getElementById('squarex-extension-signal');
+            if (signalElement) {
+                log('✅ Test 4: DOM signal element found');
+                detectionResults.push('DOM Signal');
+                extensionFound = true;
+            } else {
+                log('❌ Test 4: DOM signal element not found');
+            }
+            
+            // Test 5: Listen for any postMessage
+            window.addEventListener('message', (event) => {
+                const data = event.data || {};
+                if (data.source === 'squarex-extension') {
+                    log(`✅ Test 5: PostMessage received - ${JSON.stringify(data)}`);
+                    if (!detectionResults.includes('PostMessage')) {
+                        detectionResults.push('PostMessage');
+                    }
+                    extensionFound = true;
+                    updateResults();
+                }
+            });
+            log('👂 Test 5: Listening for postMessage...');
+            
+            // Test 6: Check for fallback script element
+            const fallbackScript = document.getElementById('squarex-extension-fallback');
+            if (fallbackScript) {
+                log('✅ Test 6: Fallback script element found in DOM');
+                detectionResults.push('Fallback DOM');
+                extensionFound = true;
+            } else {
+                log('❌ Test 6: Fallback script element not found in DOM');
+            }
+            
+            updateResults();
+        }
+
+        function updateResults() {
+            if (extensionFound) {
+                updateStatus('✅ Safari Extension Detected!', 'success');
+                resultsElement.style.display = 'block';
+                resultsContent.innerHTML = `
+                    <p><strong>Detection Methods:</strong> ${detectionResults.join(', ')}</p>
+                    <p><strong>URL:</strong> ${window.location.href}</p>
+                    <p><strong>User Agent:</strong> ${navigator.userAgent}</p>
+                `;
+            } else {
+                updateStatus('❌ Safari Extension NOT Detected', 'error');
+                resultsElement.style.display = 'block';
+                resultsContent.innerHTML = `
+                    <p><strong>No extension detected</strong></p>
+                    <p><strong>Troubleshooting Steps:</strong></p>
+                    <ol>
+                        <li>Check Safari → Preferences → Extensions</li>
+                        <li>Ensure "SquareX File Scanner" is enabled</li>
+                        <li>Check "Allow Extension" for this site</li>
+                        <li>Reload the extension (disable/enable)</li>
+                        <li>Check Safari Console for errors</li>
+                    </ol>
+                `;
+            }
+        }
+
+        // Start tests
+        log('Page loaded, starting simple detection tests...');
+        testDetection();
+        
+        // Re-test after 5 seconds
+        setTimeout(() => {
+            log('=== Re-running tests after 5 seconds ===');
+            testDetection();
+        }, 5000);
+        
+        // Final test after 10 seconds
+        setTimeout(() => {
+            log('=== Final test after 10 seconds ===');
+            testDetection();
+            log('=== Tests complete ===');
+        }, 10000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Safari Web Extensions Support Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .status.success { background-color: #d4edda; border-left: 4px solid #28a745; }
+        .status.error { background-color: #f8d7da; border-left: 4px solid #dc3545; }
+        .status.info { background-color: #e3f2fd; border-left: 4px solid #007bff; }
+        .log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Safari Web Extensions Support Test</h1>
+        
+        <div class="status info">
+            <h3>Test Purpose</h3>
+            <p>This page tests if Safari supports Web Extensions at all, and what APIs are available.</p>
+        </div>
+        
+        <div id="status" class="status info">
+            Testing Safari Web Extensions support...
+        </div>
+        
+        <div id="log" class="log">
+            Starting Safari Web Extensions support test...\n
+        </div>
+        
+        <div id="results" class="status info" style="display: none;">
+            <h3>Test Results</h3>
+            <div id="results-content"></div>
+        </div>
+    </div>
+
+    <script>
+        const logElement = document.getElementById('log');
+        const statusElement = document.getElementById('status');
+        const resultsElement = document.getElementById('results');
+        const resultsContent = document.getElementById('results-content');
+
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            logElement.textContent += `[${timestamp}] ${message}\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+            console.log(`[SAFARI TEST] ${message}`);
+        }
+
+        function updateStatus(message, type = 'info') {
+            statusElement.textContent = message;
+            statusElement.className = `status ${type}`;
+        }
+
+        // Test Safari Web Extensions support
+        function testSafariSupport() {
+            log('=== Testing Safari Web Extensions Support ===');
+            
+            // Test 1: Check if browser object exists
+            if (typeof browser !== 'undefined') {
+                log('✅ Test 1: browser object exists');
+                log(`   browser type: ${typeof browser}`);
+                log(`   browser keys: ${Object.keys(browser).join(', ')}`);
+            } else {
+                log('❌ Test 1: browser object not found');
+            }
+            
+            // Test 2: Check if chrome object exists
+            if (typeof chrome !== 'undefined') {
+                log('✅ Test 2: chrome object exists');
+                log(`   chrome type: ${typeof chrome}`);
+                log(`   chrome keys: ${Object.keys(chrome).join(', ')}`);
+            } else {
+                log('❌ Test 2: chrome object not found');
+            }
+            
+            // Test 3: Check if safari object exists
+            if (typeof safari !== 'undefined') {
+                log('✅ Test 3: safari object exists');
+                log(`   safari type: ${typeof safari}`);
+                log(`   safari keys: ${Object.keys(safari).join(', ')}`);
+            } else {
+                log('❌ Test 3: safari object not found');
+            }
+            
+            // Test 4: Check for extension APIs
+            const apis = ['runtime', 'tabs', 'storage', 'extension'];
+            apis.forEach(api => {
+                if (typeof browser !== 'undefined' && browser[api]) {
+                    log(`✅ Test 4: browser.${api} exists`);
+                } else if (typeof chrome !== 'undefined' && chrome[api]) {
+                    log(`✅ Test 4: chrome.${api} exists`);
+                } else if (typeof safari !== 'undefined' && safari[api]) {
+                    log(`✅ Test 4: safari.${api} exists`);
+                } else {
+                    log(`❌ Test 4: ${api} API not found`);
+                }
+            });
+            
+            // Test 5: Check user agent
+            log(`Test 5: User Agent: ${navigator.userAgent}`);
+            
+            // Test 6: Check if we're in an extension context
+            if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id) {
+                log(`✅ Test 6: Extension context detected - ID: ${chrome.runtime.id}`);
+            } else if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.id) {
+                log(`✅ Test 6: Extension context detected - ID: ${browser.runtime.id}`);
+            } else if (typeof safari !== 'undefined' && safari.extension) {
+                log('✅ Test 6: Safari extension context detected');
+            } else {
+                log('❌ Test 6: Not in extension context');
+            }
+            
+            updateResults();
+        }
+
+        function updateResults() {
+            const hasBrowser = typeof browser !== 'undefined';
+            const hasChrome = typeof chrome !== 'undefined';
+            const hasSafari = typeof safari !== 'undefined';
+            
+            if (hasBrowser || hasChrome || hasSafari) {
+                updateStatus('✅ Web Extensions API Detected', 'success');
+                resultsElement.style.display = 'block';
+                resultsContent.innerHTML = `
+                    <p><strong>Available APIs:</strong></p>
+                    <ul>
+                        <li>Browser API: ${hasBrowser ? '✅ Available' : '❌ Not Available'}</li>
+                        <li>Chrome API: ${hasChrome ? '✅ Available' : '❌ Not Available'}</li>
+                        <li>Safari API: ${hasSafari ? '✅ Available' : '❌ Not Available'}</li>
+                    </ul>
+                    <p><strong>Browser:</strong> ${navigator.userAgent}</p>
+                    <p><strong>Extension Context:</strong> ${hasBrowser || hasChrome || hasSafari ? 'Yes' : 'No'}</p>
+                `;
+            } else {
+                updateStatus('❌ No Web Extensions API Detected', 'error');
+                resultsElement.style.display = 'block';
+                resultsContent.innerHTML = `
+                    <p><strong>No Web Extensions API found</strong></p>
+                    <p>This could mean:</p>
+                    <ul>
+                        <li>Safari doesn't support Web Extensions</li>
+                        <li>Web Extensions are disabled</li>
+                        <li>You're not running this in an extension context</li>
+                        <li>Safari requires a different approach</li>
+                    </ul>
+                    <p><strong>Browser:</strong> ${navigator.userAgent}</p>
+                `;
+            }
+        }
+
+        // Start tests
+        log('Page loaded, starting Safari Web Extensions support tests...');
+        testSafariSupport();
+    </script>
+</body>
+</html>

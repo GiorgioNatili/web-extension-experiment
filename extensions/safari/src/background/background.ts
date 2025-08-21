@@ -1,9 +1,14 @@
-// Safari background script
+// Safari background script (Manifest V2)
 import { CONFIG, MESSAGES } from 'shared';
 import { safariWASMLoader } from './wasm-loader';
-import { safariErrorHandler, ErrorType } from '../utils/error-handler';
+import { safariErrorHandler } from '../utils/error-handler';
+
+// Temporary browser declaration for TypeScript compilation
+declare const browser: any;
 
 console.log('SquareX File Scanner Safari Background Script loaded');
+
+console.log('SquareX Security Scanner Safari Background Script loaded');
 
 // Configuration
 const TIMEOUT_MS = 30000; // 30 seconds
@@ -12,6 +17,40 @@ const CHUNK_SIZE = CONFIG.CHUNK_SIZE; // 1MB
 
 // In-memory storage for streaming operations
 const streamingOperations = new Map<string, any>();
+
+/**
+ * Send ready signals with retry mechanism
+ */
+async function sendReadySignalsWithRetry(): Promise<void> {
+  const maxRetries = 3;
+  const delayMs = 1000;
+  
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      await new Promise(resolve => setTimeout(resolve, delayMs * i));
+      console.log(`[Safari] Sending ready signal attempt ${i + 1}/${maxRetries}`);
+      
+      const tabs = await browser.tabs.query({});
+      for (const tab of tabs) {
+        if (tab.id) {
+          try {
+            await browser.tabs.sendMessage(tab.id, { 
+              type: 'EXTENSION_READY',
+              source: 'squarex-extension',
+              ready: true 
+            });
+            console.log(`[Safari] Ready signal sent to tab ${tab.id}`);
+          } catch (tabError) {
+            // Ignore errors for tabs that don't have content scripts
+            console.log(`[Safari] Tab ${tab.id} has no content script`);
+          }
+        }
+      }
+    } catch (error) {
+      console.log(`[Safari] Ready signal attempt ${i + 1} failed:`, error);
+    }
+  }
+}
 
 // Initialize WASM module on startup
 async function initializeWASM() {
@@ -31,27 +70,11 @@ async function initializeWASM() {
 // Initialize on startup
 initializeWASM();
 
-// NEW: Send ready signal immediately
-console.log('[Safari] Sending immediate ready signal');
-try {
-  browser.tabs.query({}).then((tabs: any[]) => {
-    tabs.forEach((tab: any) => {
-      if (tab.id) {
-        browser.tabs.sendMessage(tab.id, { 
-          type: 'EXTENSION_READY',
-          source: 'squarex-extension',
-          ready: true 
-        }).catch(() => {
-          // Ignore errors for tabs that don't have content scripts
-        });
-      }
-    });
-  });
-} catch (error) {
-  console.error('[Safari] Error sending immediate ready signal:', error);
-}
+// Send ready signals with retry mechanism
+console.log('[Safari] Sending ready signals with retry mechanism');
+sendReadySignalsWithRetry();
 
-// Handle messages from content script
+// Handle messages from content script (Manifest V2 pattern)
 browser.runtime.onMessage.addListener((message: any, sender: any, sendResponse: any) => {
   console.log('Received message:', message);
   
@@ -291,8 +314,10 @@ function chunkContent(content: string, chunkSize: number): string[] {
 // Clean up old streaming operations periodically
 setInterval(() => {
   const now = Date.now();
-  for (const [operationId, operation] of streamingOperations.entries()) {
-    if (now - operation.lastActivity > TIMEOUT_MS) {
+  const operationIds = Array.from(streamingOperations.keys());
+  for (const operationId of operationIds) {
+    const operation = streamingOperations.get(operationId);
+    if (operation && (now - operation.lastActivity > TIMEOUT_MS)) {
       console.log('Cleaning up expired streaming operation:', operationId);
       streamingOperations.delete(operationId);
     }

@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Safari Extension Debug</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .status.success {
+            background-color: #d4edda;
+            border-left: 4px solid #28a745;
+        }
+        .status.error {
+            background-color: #f8d7da;
+            border-left: 4px solid #dc3545;
+        }
+        .status.info {
+            background-color: #e3f2fd;
+            border-left: 4px solid #007bff;
+        }
+        .log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Safari Extension Debug</h1>
+        
+        <div class="status info">
+            <h3>Debug Purpose</h3>
+            <p>This page tests various methods to detect Safari extension content script injection.</p>
+        </div>
+        
+        <div id="status" class="status info">
+            Checking for Safari extension...
+        </div>
+        
+        <div id="log" class="log">
+            Starting Safari extension detection tests...\n
+        </div>
+        
+        <div id="details" class="status info" style="display: none;">
+            <h3>Detection Details</h3>
+            <div id="details-content"></div>
+        </div>
+    </div>
+
+    <script>
+        const logElement = document.getElementById('log');
+        const statusElement = document.getElementById('status');
+        const detailsElement = document.getElementById('details');
+        const detailsContent = document.getElementById('details-content');
+
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            logElement.textContent += `[${timestamp}] ${message}\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+            console.log(`[DEBUG] ${message}`);
+        }
+
+        function updateStatus(message, type = 'info') {
+            statusElement.textContent = message;
+            statusElement.className = `status ${type}`;
+        }
+
+        // Test multiple detection methods
+        let extensionDetected = false;
+        let detectionMethods = [];
+
+        // Method 1: Check window property
+        function checkWindowProperty() {
+            if (window.squarexExtensionLoaded) {
+                log('✅ Method 1: Window property detected');
+                detectionMethods.push('Window Property');
+                return true;
+            } else {
+                log('❌ Method 1: Window property not found');
+                return false;
+            }
+        }
+
+        // Method 2: Listen for custom event
+        function checkCustomEvent() {
+            document.addEventListener('squarex-extension-ready', (event) => {
+                log(`✅ Method 2: Custom event received - ${JSON.stringify(event.detail)}`);
+                detectionMethods.push('Custom Event');
+                extensionDetected = true;
+                updateDetectionStatus();
+            });
+            log('👂 Method 2: Listening for custom event...');
+        }
+
+        // Method 3: Listen for postMessage
+        function checkPostMessage() {
+            window.addEventListener('message', (event) => {
+                const data = event.data || {};
+                if (data.source === 'squarex-extension' && data.ready) {
+                    log(`✅ Method 3: PostMessage received - ${JSON.stringify(data)}`);
+                    if (!detectionMethods.includes('PostMessage')) {
+                        detectionMethods.push('PostMessage');
+                    }
+                    extensionDetected = true;
+                    updateDetectionStatus();
+                }
+            });
+            log('👂 Method 3: Listening for postMessage...');
+        }
+
+        // Method 4: Check DOM for signal element
+        function checkDOMSignal() {
+            const signalElement = document.getElementById('squarex-extension-signal');
+            if (signalElement) {
+                log(`✅ Method 4: DOM signal found - extension: ${signalElement.getAttribute('data-extension')}, ready: ${signalElement.getAttribute('data-ready')}`);
+                detectionMethods.push('DOM Signal');
+                return true;
+            } else {
+                log('❌ Method 4: DOM signal element not found');
+                return false;
+            }
+        }
+
+        // Method 5: Try to detect via DOM mutations
+        function checkDOMMutations() {
+            const observer = new MutationObserver((mutations) => {
+                mutations.forEach((mutation) => {
+                    if (mutation.type === 'childList') {
+                        mutation.addedNodes.forEach((node) => {
+                            if (node.nodeType === Node.ELEMENT_NODE && node.id === 'squarex-extension-signal') {
+                                log('✅ Method 5: DOM signal detected via mutation observer');
+                                detectionMethods.push('DOM Mutation');
+                                extensionDetected = true;
+                                updateDetectionStatus();
+                            }
+                        });
+                    }
+                });
+            });
+            
+            observer.observe(document.documentElement, {
+                childList: true,
+                subtree: true
+            });
+            log('👂 Method 5: Watching for DOM mutations...');
+        }
+
+        function updateDetectionStatus() {
+            if (extensionDetected) {
+                updateStatus('✅ Safari Extension Detected!', 'success');
+                detailsElement.style.display = 'block';
+                detailsContent.innerHTML = `
+                    <p><strong>Detection Methods:</strong> ${detectionMethods.join(', ')}</p>
+                    <p><strong>Browser:</strong> ${navigator.userAgent}</p>
+                    <p><strong>URL:</strong> ${window.location.href}</p>
+                `;
+            }
+        }
+
+        // Run all detection tests
+        function runDetectionTests() {
+            log('Starting detection tests...');
+            
+            // Immediate checks
+            if (checkWindowProperty()) {
+                extensionDetected = true;
+            }
+            if (checkDOMSignal()) {
+                extensionDetected = true;
+            }
+            
+            // Setup listeners
+            checkCustomEvent();
+            checkPostMessage();
+            checkDOMMutations();
+            
+            // Periodic checks
+            const intervalId = setInterval(() => {
+                if (checkWindowProperty() || checkDOMSignal()) {
+                    extensionDetected = true;
+                    updateDetectionStatus();
+                }
+            }, 500);
+            
+            // Timeout after 10 seconds
+            setTimeout(() => {
+                clearInterval(intervalId);
+                if (!extensionDetected) {
+                    updateStatus('❌ Safari Extension NOT Detected', 'error');
+                    log('❌ Timeout: No extension detected after 10 seconds');
+                    log('🔍 Check Safari Extensions preferences and reload the extension');
+                    log('🔍 Ensure the extension is enabled for this site');
+                    log('🔍 Check Safari Console for any extension errors');
+                }
+            }, 10000);
+            
+            updateDetectionStatus();
+        }
+
+        // Start detection when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            log('Page loaded, starting detection tests...');
+            runDetectionTests();
+        });
+
+        // Also start immediately in case DOMContentLoaded already fired
+        if (document.readyState === 'loading') {
+            log('Document still loading, waiting for DOMContentLoaded...');
+        } else {
+            log('Document already loaded, starting detection tests immediately...');
+            runDetectionTests();
+        }
+    </script>
+</body>
+</html>

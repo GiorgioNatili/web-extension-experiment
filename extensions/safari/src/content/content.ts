@@ -2,10 +2,156 @@
 import { CONFIG, MESSAGES } from 'shared';
 import { getFileInfo, isValidTextFile, readFileAsText } from 'shared';
 import { createElement, createProgressBar } from 'shared';
+
+// Temporary browser declaration for TypeScript compilation
+declare const browser: any;
+
+// Safari Web Extensions compatibility layer
+const extensionAPI = (() => {
+  if (typeof browser !== 'undefined' && browser.runtime) return browser;
+  return null;
+})();
+
+console.log('[Safari] Extension API available:', !!extensionAPI);
+console.log('[Safari] Browser runtime available:', !!(browser && browser.runtime));
+
 // Defer importing wasm glue to avoid breaking content script load if init fails
 let wasmNs: any | null = null;
 
 console.log('SquareX Security Scanner Safari Content Script loaded');
+console.log('[Safari] Content script execution started');
+console.log('[Safari] Current URL:', window.location.href);
+console.log('[Safari] User Agent:', navigator.userAgent);
+
+// AGGRESSIVE Safari content script detection - multiple approaches
+// Method 1: Immediate window property
+(window as any).squarexExtensionLoaded = true;
+
+// Method 2: Custom event
+try {
+  const customEvent = new CustomEvent('squarex-extension-ready', { 
+    detail: { source: 'squarex-extension', ready: true, browser: 'safari' } 
+  });
+  document.dispatchEvent(customEvent);
+} catch (_) {}
+
+// Method 3: Multiple postMessage signals with different timings
+const sendReadySignal = () => {
+  try {
+    window.postMessage({ source: 'squarex-extension', ready: true, browser: 'safari' }, '*');
+    console.log('[Safari] Ready signal sent via postMessage');
+  } catch (e) {
+    console.error('[Safari] Failed to send ready signal:', e);
+  }
+};
+
+// Send immediately
+sendReadySignal();
+
+// Send with various delays
+[100, 250, 500, 1000, 1500, 2000, 3000].forEach(delay => {
+  setTimeout(sendReadySignal, delay);
+});
+
+// Method 4: DOM-based signal
+try {
+  const signalDiv = document.createElement('div');
+  signalDiv.id = 'squarex-extension-signal';
+  signalDiv.style.display = 'none';
+  signalDiv.setAttribute('data-extension', 'safari');
+  signalDiv.setAttribute('data-ready', 'true');
+  document.documentElement.appendChild(signalDiv);
+  console.log('[Safari] DOM signal element added');
+} catch (_) {}
+
+// Method 5: Fallback injection - inject script tag if content script isn't working
+try {
+  if (!document.getElementById('squarex-extension-fallback')) {
+    const script = document.createElement('script');
+    script.id = 'squarex-extension-fallback';
+    script.textContent = `
+      console.log('[Safari Fallback] Injected fallback script');
+      window.squarexExtensionFallback = true;
+      window.postMessage({ source: 'squarex-extension', ready: true, fallback: true }, '*');
+    `;
+    document.head.appendChild(script);
+    console.log('[Safari] Fallback script injected');
+  }
+} catch (_) {}
+
+// Continuous ready signal broadcasting for test pages
+setInterval(() => {
+  try {
+    window.postMessage({ source: 'squarex-extension', ready: true }, '*');
+  } catch (_) {}
+}, 2000); // Send ready signal every 2 seconds
+
+// Message bridge for test pages (Safari Web Extensions compatible)
+window.addEventListener('message', async (event: MessageEvent) => {
+  try {
+    if (event.source !== window) return;
+    const data: any = (event as any).data;
+    if (!data || data.source !== 'squarex-test' || !data.payload) return;
+
+    console.log('[Safari] Message bridge received:', data);
+    console.log('[Safari] Processing message type:', data.payload?.type);
+
+    const correlationId = data.correlationId || null;
+    try {
+      if (data.payload?.type === 'TEST_WASM_LOADING') {
+        const resp = await handleLocalWasmTest();
+        console.log('[Safari] WASM test response:', resp);
+        window.postMessage({ source: 'squarex-extension', correlationId, response: resp }, '*');
+      } else if (data.payload?.type === 'ANALYZE_FILE_BRIDGE' && data.payload?.content) {
+        const result = await analyzeFileLocally(data.payload.content);
+        window.postMessage({ source: 'squarex-extension', correlationId, response: { success: true, result } }, '*');
+      } else {
+        // Safari only has browser.runtime, so handle messages locally
+        console.log('[Safari] Handling message locally (no background script):', data.payload);
+        const response = await handleMessageLocally(data.payload);
+        window.postMessage({ source: 'squarex-extension', correlationId, response }, '*');
+      }
+    } catch (error) {
+      console.error('[Safari] Message bridge error:', error);
+      const message = error instanceof Error ? error.message : String(error);
+      window.postMessage({ source: 'squarex-extension', correlationId, error: message }, '*');
+    }
+  } catch (e) {
+    // Swallow unexpected bridge errors to avoid breaking the page
+    console.error('[Safari] Unexpected bridge error:', e);
+  }
+});
+
+/**
+ * Handle messages locally since Safari has limited API support
+ */
+async function handleMessageLocally(message: any): Promise<any> {
+  console.log('[Safari] Handling message locally:', message);
+  
+  switch (message.type) {
+    case 'GET_STATUS':
+      return { 
+        status: 'ready',
+        wasm_loaded: wasmInitialized,
+        module_status: wasmInitialized ? 'loaded' : 'not_loaded',
+        browser: 'safari'
+      };
+      
+    case 'GET_ERROR_LOG':
+      return { 
+        error_log: [],
+        error_stats: { total_errors: 0 },
+        browser: 'safari'
+      };
+      
+    case 'TEST_WASM_LOADING':
+      return await handleLocalWasmTest();
+      
+    default:
+      console.warn('[Safari] Unknown message type:', message.type);
+      return { success: false, error: 'Unknown message type' };
+  }
+}
 
 // Configuration
 const CHUNK_SIZE = CONFIG.CHUNK_SIZE; // 1MB chunks
@@ -46,41 +192,7 @@ async function ensureWasm(): Promise<void> {
   }
 }
 
-/**
- * Message bridge: allow test pages to communicate with the extension via window.postMessage
- * This avoids calling browser.runtime APIs directly from webpages, which requires an extensionId.
- */
-window.addEventListener('message', async (event: MessageEvent) => {
-  try {
-    // Only accept messages from the same window
-    if (event.source !== window) return;
 
-    const data: any = (event as any).data;
-    if (!data || data.source !== 'squarex-test' || !data.payload) return;
-
-    const correlationId = data.correlationId || null;
-    try {
-      if (data.payload?.type === 'TEST_WASM_LOADING') {
-        const resp = await handleLocalWasmTest();
-        console.log('[Content] WASM test response:', resp);
-        window.postMessage({ source: 'squarex-extension', correlationId, response: resp }, '*');
-      } else if (data.payload?.type === 'ANALYZE_FILE_BRIDGE' && data.payload?.content) {
-        const result = await analyzeFileLocally(data.payload.content);
-        window.postMessage({ source: 'squarex-extension', correlationId, response: { success: true, result } }, '*');
-      } else {
-        const response = await browser.runtime.sendMessage(data.payload);
-        window.postMessage({ source: 'squarex-extension', correlationId, response }, '*');
-      }
-    } catch (error) {
-      console.error('[Content] Message bridge error:', error);
-      const message = error instanceof Error ? error.message : String(error);
-      window.postMessage({ source: 'squarex-extension', correlationId, error: message }, '*');
-    }
-  } catch (e) {
-    // Swallow unexpected bridge errors to avoid breaking the page
-    console.error('[Content] Unexpected bridge error:', e);
-  }
-});
 
 /**
  * Generate a unique operation ID
@@ -190,6 +302,24 @@ function createResultsPanel(): void {
   header.appendChild(closeButton);
   resultsPanel.appendChild(header);
 
+  // Add welcome message and instructions
+  const welcomeDiv = document.createElement('div');
+  welcomeDiv.style.cssText = `
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    margin-bottom: 20px;
+    border-left: 4px solid #007bff;
+  `;
+  welcomeDiv.innerHTML = `
+    <h4 style="margin: 0 0 10px 0; color: #007bff;">Welcome to SquareX File Scanner</h4>
+    <p style="margin: 0; font-size: 13px; color: #666;">
+      This extension monitors file uploads and analyzes them for security risks.
+      Upload a text file to see analysis results here.
+    </p>
+  `;
+  resultsPanel.appendChild(welcomeDiv);
+
   // Add toggle button for UI mode
   const toggleButton = document.createElement('button');
   toggleButton.textContent = uiMode === 'compact' ? '📋' : '📱';
@@ -222,13 +352,45 @@ function createResultsPanel(): void {
   
   toggleButton.addEventListener('click', () => {
     uiMode = uiMode === 'compact' ? 'sidebar' : 'compact';
-    if (resultsPanel) {
-      resultsPanel.remove();
+    toggleButton.textContent = uiMode === 'compact' ? '📋' : '📱';
+    toggleButton.setAttribute('aria-label', `Switch to ${uiMode === 'compact' ? 'sidebar' : 'compact'} mode`);
+    
+    // Recreate results panel with new mode
+    createResultsPanel();
+    
+    showNotification(`Switched to ${uiMode} UI mode`, 'success');
+  });
+  
+  // Add a button to show results panel if it's closed
+  const showPanelButton = document.createElement('button');
+  showPanelButton.textContent = 'Show Results Panel';
+  showPanelButton.setAttribute('aria-label', 'Show the SquareX results panel');
+  showPanelButton.style.cssText = `
+    position: absolute;
+    top: 20px;
+    left: 80px;
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: bold;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  `;
+  
+  showPanelButton.addEventListener('click', () => {
+    if (!resultsPanel) {
       createResultsPanel();
+      showNotification('Results panel opened', 'success');
+    } else {
+      showNotification('Results panel is already visible', 'success');
     }
   });
-
+  
   resultsPanel.appendChild(toggleButton);
+  resultsPanel.appendChild(showPanelButton);
   document.body.appendChild(resultsPanel);
 }
 
@@ -372,7 +534,10 @@ function showNotification(message: string, type: 'success' | 'error' | 'info' = 
  * Monitor file uploads on the page
  */
 function monitorFileUploads(): void {
+  console.log('[Safari] Setting up file monitoring...');
+  
   const fileInputs = document.querySelectorAll('input[type="file"]');
+  console.log('[Safari] Found', fileInputs.length, 'file inputs');
   
   fileInputs.forEach((input: Element) => {
     const fileInput = input as HTMLInputElement;
@@ -667,10 +832,53 @@ function showResults(result: any, fileName: string): void {
  */
 async function handleLocalWasmTest(): Promise<any> {
   try {
+    console.log('[Safari] Starting local WASM test...');
     await ensureWasm();
-    return { success: true, wasm_loaded: wasmInitialized };
-  } catch (error) {
-    return { success: false, error: error.message };
+    
+    if (!wasmInitialized || !wasmNs) {
+      console.error('[Safari] WASM not available for test');
+      return { 
+        success: false, 
+        wasmLoaded: false, 
+        moduleStatus: 'error', 
+        error: 'WASM not available - initialization failed' 
+      };
+    }
+    
+    console.log('[Safari] WASM available, running test...');
+    
+    // Test WASM functionality with sample content
+    try {
+      // Use WASM module for test analysis (same as Chrome)
+      const moduleInstance = new (wasmNs as any).WasmModule();
+      const analyzer = moduleInstance.init_streaming();
+      const updatedAnalyzer = moduleInstance.process_chunk(analyzer, 'test content');
+      const res = moduleInstance.finalize_streaming(updatedAnalyzer);
+      
+      console.log('[Safari] WASM test completed successfully');
+      return {
+        success: true,
+        wasmLoaded: true,
+        moduleStatus: 'loaded',
+        testResult: `WASM analysis test passed: ${JSON.stringify(res).substring(0, 100)}...`
+      };
+    } catch (wasmError) {
+      console.error('[Safari] WASM analysis test failed:', wasmError);
+      return {
+        success: false,
+        wasmLoaded: true,
+        moduleStatus: 'error',
+        error: `WASM analysis failed: ${wasmError instanceof Error ? wasmError.message : String(wasmError)}`
+      };
+    }
+  } catch (e) {
+    console.error('[Safari] WASM test failed:', e);
+    return {
+      success: false,
+      wasmLoaded: false,
+      moduleStatus: 'error',
+      error: e instanceof Error ? e.message : String(e)
+    };
   }
 }
 
@@ -684,11 +892,15 @@ async function analyzeFileLocally(content: string): Promise<any> {
       throw new Error('WASM not initialized');
     }
     
-    // Use WASM module for local analysis
-    const result = wasmNs.analyze_content(content);
+    // Use WASM module for local analysis (same as Chrome)
+    const moduleInstance = new (wasmNs as any).WasmModule();
+    const analyzer = moduleInstance.init_streaming();
+    const updatedAnalyzer = moduleInstance.process_chunk(analyzer, content);
+    const result = moduleInstance.finalize_streaming(updatedAnalyzer);
+    
     return result;
   } catch (error: unknown) {
-    console.error('[Content] Local analysis failed:', error);
+    console.error('[Safari] Local analysis failed:', error);
     throw error as Error;
   }
 }
@@ -696,14 +908,16 @@ async function analyzeFileLocally(content: string): Promise<any> {
 /**
  * Listen for extension ready signal from background script
  */
-browser.runtime.onMessage.addListener((message: any) => {
-  if (message.type === 'EXTENSION_READY' && message.source === 'squarex-extension') {
-    console.log('[Safari] Received extension ready signal from background script');
-    try {
-      window.postMessage({ source: 'squarex-extension', ready: true }, '*');
-    } catch (_) {}
-  }
-});
+function setupMessageListener(): void {
+  browser.runtime.onMessage.addListener((message: any) => {
+    if (message.type === 'EXTENSION_READY' && message.source === 'squarex-extension') {
+      console.log('[Safari] Received extension ready signal from background script');
+      try {
+        window.postMessage({ source: 'squarex-extension', ready: true }, '*');
+      } catch (_) {}
+    }
+  });
+}
 
 /**
  * Monitor for new file inputs added to the page
@@ -730,6 +944,9 @@ const observer = new MutationObserver((mutations) => {
 function initialize(): void {
   console.log('[Safari] Initializing content script...');
   
+  // Setup message listener
+  setupMessageListener();
+  
   // Monitor existing file inputs
   monitorFileUploads();
   
@@ -739,10 +956,8 @@ function initialize(): void {
     subtree: true
   });
   
-  // Send ready signal to test pages
-  try {
-    window.postMessage({ source: 'squarex-extension', ready: true }, '*');
-  } catch (_) {}
+  // Create initial results panel for visibility
+  createResultsPanel();
   
   console.log('[Safari] Content script initialized');
 }

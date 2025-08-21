@@ -1,6 +1,9 @@
 // Safari popup script
 import { CONFIG, MESSAGES } from 'shared';
 
+// Temporary browser declaration for TypeScript compilation
+declare const browser: any;
+
 let toggleButton: HTMLButtonElement | null = null;
 let testWasmButton: HTMLButtonElement | null = null;
 let statusElement: HTMLElement | null = null;
@@ -20,6 +23,9 @@ async function initializePopup() {
   // Load current settings
   const result = await browser.storage.local.get(['scannerEnabled', 'entropyThreshold']);
   const scannerEnabled = result.scannerEnabled !== false;
+
+  // Initialize sample data if none exists
+  await initializeSampleData();
 
   // Set up toggle button
   if (toggleButton) {
@@ -90,6 +96,38 @@ async function toggleScanner() {
       toggleButton.disabled = false;
     }
   }
+}
+
+function showNotification(message: string, type: 'success' | 'error' | 'info' = 'info') {
+  // Create notification element
+  const notification = document.createElement('div');
+  notification.textContent = message;
+  notification.className = `notification ${type}`;
+  notification.style.cssText = `
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: ${type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : '#007bff'};
+    color: white;
+    padding: 12px 24px;
+    border-radius: 6px;
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    z-index: 10002;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    max-width: 400px;
+    text-align: center;
+  `;
+  
+  document.body.appendChild(notification);
+  
+  // Auto-remove after 3 seconds
+  setTimeout(() => {
+    if (notification.parentNode) {
+      notification.remove();
+    }
+  }, 3000);
 }
 
 // Trigger background WASM loading test
@@ -182,48 +220,66 @@ async function updateLatestResults() {
       `;
       latestResultsElement.className = 'status success';
     } else if (latestResultsElement) {
-      latestResultsElement.innerHTML = 'No analysis results available';
+      // Show helpful information when no analysis results exist
+      latestResultsElement.innerHTML = `
+        <h4>Latest Analysis</h4>
+        <p><strong>Status:</strong> No files analyzed yet</p>
+        <p><strong>To see results:</strong></p>
+        <ul style="margin: 5px 0; padding-left: 15px; font-size: 11px;">
+          <li>Upload a text file on any webpage</li>
+          <li>Or use the test page at localhost:8080</li>
+          <li>Or click "Test WASM" to verify functionality</li>
+        </ul>
+        <p><strong>Extension Status:</strong> Ready to scan files</p>
+      `;
       latestResultsElement.className = 'status info';
     }
   } catch (error) {
     console.error('Failed to update latest results:', error);
     if (latestResultsElement) {
-      latestResultsElement.innerHTML = 'Error loading results';
+      latestResultsElement.innerHTML = `
+        <h4>Latest Analysis</h4>
+        <p><strong>Error:</strong> Failed to load results</p>
+        <p><strong>Details:</strong> ${error instanceof Error ? error.message : String(error)}</p>
+        <p><strong>Try:</strong> Refreshing the popup or checking console</p>
+      `;
       latestResultsElement.className = 'status error';
     }
   }
 }
 
-function showNotification(message: string, type: 'success' | 'error' | 'info' = 'info') {
-  // Create notification element
-  const notification = document.createElement('div');
-  notification.textContent = message;
-  notification.className = `notification ${type}`;
-  notification.style.cssText = `
-    position: fixed;
-    top: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: ${type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : '#007bff'};
-    color: white;
-    padding: 12px 24px;
-    border-radius: 6px;
-    font-family: Arial, sans-serif;
-    font-size: 14px;
-    z-index: 10002;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    max-width: 400px;
-    text-align: center;
-  `;
-  
-  document.body.appendChild(notification);
-  
-  // Auto-remove after 3 seconds
-  setTimeout(() => {
-    if (notification.parentNode) {
-      notification.remove();
-    }
-  }, 3000);
+// Initialize sample data for demonstration
+async function initializeSampleData() {
+  try {
+    const result = await browser.storage.local.get(['latestAnalysisResult', 'sampleDataInitialized']);
+    
+    // Only initialize once
+    if (result.sampleDataInitialized) return;
+    
+    // Create sample analysis result
+    const sampleResult = {
+      fileName: 'sample.txt',
+      decision: 'allow',
+      riskScore: 0.18,
+      reason: 'Sample data for demonstration',
+      entropy: 3.1,
+      timestamp: Date.now() - 3600000, // 1 hour ago
+      stats: {
+        totalChunks: 1,
+        totalContent: 768,
+        processingTime: 42
+      }
+    };
+    
+    await browser.storage.local.set({ 
+      latestAnalysisResult: sampleResult,
+      sampleDataInitialized: true 
+    });
+    
+    console.log('Sample data initialized for Safari popup demonstration');
+  } catch (error) {
+    console.error('Failed to initialize sample data:', error);
+  }
 }
 
 // Initialize popup when DOM is loaded

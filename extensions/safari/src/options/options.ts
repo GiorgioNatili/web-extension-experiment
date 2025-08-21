@@ -1,5 +1,10 @@
-// Safari options page script
+// Safari options script
 import { CONFIG, MESSAGES } from 'shared';
+
+// Temporary browser declaration for TypeScript compilation
+declare const browser: any;
+
+console.log('SquareX Security Scanner Safari Options Script loaded');
 
 let entropyInput: HTMLInputElement | null = null;
 let riskInput: HTMLInputElement | null = null;
