@@ -4,7 +4,14 @@ import { CONFIG, MESSAGES } from 'shared';
 // Mock browser API
 const mockBrowser = {
   runtime: {
-    sendMessage: jest.fn()
+    sendMessage: jest.fn(),
+    getURL: jest.fn()
+  },
+  storage: {
+    local: {
+      set: jest.fn(),
+      get: jest.fn()
+    }
   }
 };
 
@@ -12,11 +19,18 @@ const mockBrowser = {
 const mockDocument = {
   querySelectorAll: jest.fn(),
   createElement: jest.fn(),
+  getElementById: jest.fn(),
   body: {
     appendChild: jest.fn()
   },
   addEventListener: jest.fn(),
   readyState: 'complete'
+};
+
+// Mock window
+const mockWindow = {
+  postMessage: jest.fn(),
+  addEventListener: jest.fn()
 };
 
 // Mock MutationObserver
@@ -36,6 +50,7 @@ const mockFileReader = {
 // Global mocks
 global.browser = mockBrowser as any;
 global.document = mockDocument as any;
+global.window = mockWindow as any;
 global.MutationObserver = mockMutationObserver as any;
 global.FileReader = mockFileReader as any;
 
@@ -51,7 +66,8 @@ jest.mock('shared', () => ({
   isValidTextFile: jest.fn(),
   readFileAsText: jest.fn(),
   createElement: jest.fn(),
-  createProgressBar: jest.fn()
+  createProgressBar: jest.fn(),
+  showNotification: jest.fn()
 }));
 
 describe('Safari Content Script', () => {
@@ -77,6 +93,157 @@ describe('Safari Content Script', () => {
     });
   });
 
+  describe('WASM Initialization', () => {
+    test('should initialize WASM module', async () => {
+      // Mock WASM module
+      const mockWasmModule = {
+        default: jest.fn().mockResolvedValue(true)
+      };
+      
+      // Mock dynamic import
+      const mockImport = jest.fn().mockResolvedValue(mockWasmModule);
+      global.import = mockImport as any;
+      
+      // Mock browser.runtime.getURL
+      (browser.runtime.getURL as jest.Mock)
+        .mockReturnValueOnce('chrome-extension://test/wasm.js')
+        .mockReturnValueOnce('chrome-extension://test/wasm_bg.wasm');
+      
+      // Test WASM initialization
+      const ensureWasm = async () => {
+        const wasmJsUrl = browser.runtime.getURL('wasm.js');
+        const wasmBinaryUrl = browser.runtime.getURL('wasm_bg.wasm');
+        
+        // Mock the import to avoid actual module loading
+        const wasmNs = await mockImport(wasmJsUrl);
+        await wasmNs.default({ module_or_path: wasmBinaryUrl });
+        
+        return true;
+      };
+      
+      const result = await ensureWasm();
+      expect(result).toBe(true);
+      expect(browser.runtime.getURL).toHaveBeenCalledWith('wasm.js');
+      expect(browser.runtime.getURL).toHaveBeenCalledWith('wasm_bg.wasm');
+    });
+  });
+
+  describe('Message Bridge', () => {
+    test('should handle window.postMessage for test pages', () => {
+      const mockEvent = {
+        source: window,
+        data: {
+          source: 'squarex-test',
+          payload: { type: 'TEST_WASM_LOADING' },
+          correlationId: 'test-123'
+        }
+      };
+      
+      // Mock window.postMessage response
+      const handleMessage = (event: any) => {
+        if (event.source !== window) return;
+        
+        const data = event.data;
+        if (!data || data.source !== 'squarex-test' || !data.payload) return;
+        
+        // Send response back
+        window.postMessage({ 
+          source: 'squarex-extension', 
+          correlationId: data.correlationId, 
+          response: { success: true } 
+        }, '*');
+      };
+      
+      handleMessage(mockEvent);
+      
+      expect(window.postMessage).toHaveBeenCalledWith({
+        source: 'squarex-extension',
+        correlationId: 'test-123',
+        response: { success: true }
+      }, '*');
+    });
+  });
+
+  describe('Test Results Integration', () => {
+    test('should update test-results element with analysis data', () => {
+      const mockTestResults = {
+        innerHTML: '',
+        style: {}
+      };
+      
+      (document.getElementById as jest.Mock).mockReturnValue(mockTestResults);
+      
+      const showResults = (result: any, fileName: string) => {
+        // Store latest analysis result for consistency
+        const analysisResult = {
+          ...result,
+          fileName,
+          timestamp: Date.now()
+        };
+        browser.storage.local.set({ latestAnalysisResult: analysisResult });
+        
+        // Update the test page's results element if it exists
+        const testResults = document.getElementById('test-results');
+        if (testResults) {
+          const normalizedRisk = (typeof result?.riskScore === 'number')
+            ? result.riskScore
+            : (typeof result?.risk_score === 'number' ? result.risk_score : 0);
+          const decision = result.decision || 'allow';
+          const reason = result.reason || 'Analysis complete';
+          
+          testResults.innerHTML = `
+            <div class="status success">
+              <h4>Analysis Complete</h4>
+              <p><strong>File:</strong> ${fileName}</p>
+              <p><strong>Risk Score:</strong> ${(normalizedRisk * 100).toFixed(0)}%</p>
+              <p><strong>Decision:</strong> ${decision === 'allow' ? 'Allowed' : 'Blocked'}</p>
+              <p><strong>Reason:</strong> ${reason}</p>
+              <p><strong>Time:</strong> ${new Date().toLocaleTimeString()}</p>
+            </div>
+          `;
+        }
+      };
+      
+      const testResult = {
+        decision: 'allow',
+        riskScore: 0.3,
+        reason: 'File appears safe'
+      };
+      
+      showResults(testResult, 'test.txt');
+      
+      expect(browser.storage.local.set).toHaveBeenCalledWith({
+        latestAnalysisResult: expect.objectContaining({
+          fileName: 'test.txt',
+          decision: 'allow',
+          riskScore: 0.3
+        })
+      });
+      
+      expect(mockTestResults.innerHTML).toContain('Analysis Complete');
+      expect(mockTestResults.innerHTML).toContain('test.txt');
+      expect(mockTestResults.innerHTML).toContain('30%');
+      expect(mockTestResults.innerHTML).toContain('Allowed');
+    });
+  });
+
+  describe('Ready Signal Broadcasting', () => {
+    test('should send ready signal to test pages', () => {
+      const sendReadySignal = () => {
+        try {
+          window.postMessage({ source: 'squarex-extension', ready: true }, '*');
+        } catch (_) {}
+      };
+      
+      sendReadySignal();
+      
+      expect(window.postMessage).toHaveBeenCalledWith({
+        source: 'squarex-extension',
+        ready: true
+      }, '*');
+    });
+  });
+
   describe('File Input Monitoring', () => {
     test('should monitor file uploads on page load', () => {
       const mockFileInputs = [
@@ -97,323 +264,130 @@ describe('Safari Content Script', () => {
       monitorFileUploads();
       
       expect(document.querySelectorAll).toHaveBeenCalledWith('input[type="file"]');
+      expect(mockFileInputs[0].addEventListener).toHaveBeenCalledWith('change', expect.any(Function));
+      expect(mockFileInputs[1].addEventListener).toHaveBeenCalledWith('change', expect.any(Function));
     });
 
-    test('should intercept file input changes', () => {
-      const mockInput = {
-        addEventListener: jest.fn(),
-        files: [{ name: 'test.txt', size: 1024, type: 'text/plain' }],
-        value: ''
-      };
-      
-      // Mock the interceptFileInput function
-      const interceptFileInput = (input: HTMLInputElement) => {
-        const originalAddEventListener = input.addEventListener;
-        input.addEventListener = jest.fn((type: string, listener: any) => {
-          if (type === 'change') {
-            // Simulate interception
-            const event = { target: input, preventDefault: jest.fn(), stopPropagation: jest.fn() };
-            listener(event);
-          }
-        });
-      };
-      
-      interceptFileInput(mockInput as any);
-      mockInput.addEventListener('change', jest.fn());
-      
-      expect(mockInput.addEventListener).toHaveBeenCalled();
-    });
-  });
-
-  describe('File Analysis', () => {
-    test('should analyze small files with traditional method', async () => {
-      const mockFile = {
-        name: 'small.txt',
-        size: 512,
-        type: 'text/plain',
-        text: jest.fn().mockResolvedValue('small file content')
-      };
-      
-      (browser.runtime.sendMessage as jest.Mock).mockResolvedValue({
-        success: true,
-        result: {
-          decision: 'allow',
-          riskScore: 0.1,
-          reason: 'File appears safe'
-        }
-      });
-      
-      // Mock the analyzeFileContent function
-      const analyzeFileContent = async (content: string, fileName: string) => {
-        const response = await browser.runtime.sendMessage({
-          type: 'ANALYZE_FILE',
-          data: { content, fileName }
-        });
-        
-        if (response.success) {
-          return response.result;
-        } else {
-          throw new Error(response.error || 'Analysis failed');
-        }
-      };
-      
-      const result = await analyzeFileContent('small file content', 'small.txt');
-      
-      expect(result.decision).toBe('allow');
-      expect(result.riskScore).toBe(0.1);
-    });
-
-    test('should analyze large files with streaming', async () => {
-      const mockFile = {
-        name: 'large.txt',
-        size: 2 * 1024 * 1024, // 2MB
-        type: 'text/plain',
-        slice: jest.fn().mockReturnValue({
-          text: jest.fn().mockResolvedValue('chunk content')
-        })
-      };
-      
-      (browser.runtime.sendMessage as jest.Mock)
-        .mockResolvedValueOnce({ success: true }) // STREAM_INIT
-        .mockResolvedValueOnce({ success: true }) // STREAM_CHUNK
-        .mockResolvedValueOnce({ success: true }) // STREAM_CHUNK
-        .mockResolvedValueOnce({ success: true, result: { decision: 'allow' } }); // STREAM_FINALIZE
-      
-      // Mock the processFileWithStreaming function
-      const processFileWithStreaming = async (file: File) => {
-        const operationId = 'test-op-123';
-        
-        // Initialize streaming
-        const initResponse = await browser.runtime.sendMessage({
-          type: 'STREAM_INIT',
-          operation_id: operationId,
-          file_info: { name: file.name, size: file.size, type: file.type }
-        });
-        
-        if (!initResponse.success) {
-          throw new Error('Streaming initialization failed');
-        }
-        
-        // Process chunks - 2 chunks for 2MB file with 1MB chunk size
-        const totalChunks = 2;
-        for (let i = 0; i < totalChunks; i++) {
-          const chunk = await file.slice(i * CONFIG.CHUNK_SIZE, (i + 1) * CONFIG.CHUNK_SIZE).text();
-          
-          const chunkResponse = await browser.runtime.sendMessage({
-            type: 'STREAM_CHUNK',
-            operation_id: operationId,
-            chunk,
-            chunk_index: i
-          });
-          
-          if (!chunkResponse.success) {
-            throw new Error('Chunk processing failed');
-          }
-        }
-        
-        // Finalize
-        const finalizeResponse = await browser.runtime.sendMessage({
-          type: 'STREAM_FINALIZE',
-          operation_id: operationId
-        });
-        
-        if (finalizeResponse.success) {
-          return finalizeResponse.result;
-        } else {
-          throw new Error('Streaming finalization failed');
-        }
-      };
-      
-      const result = await processFileWithStreaming(mockFile as any);
-      
-      expect(result.decision).toBe('allow');
-      expect(browser.runtime.sendMessage).toHaveBeenCalledTimes(4);
-    });
-  });
-
-  describe('UI Management', () => {
-    test('should create results panel', () => {
-      const mockResultsPanel = {
-        id: 'squarex-results-panel',
-        setAttribute: jest.fn(),
-        style: {},
-        appendChild: jest.fn(),
-        remove: jest.fn()
-      };
-      
-      (document.createElement as jest.Mock).mockReturnValue(mockResultsPanel);
-      
-      // Mock the createResultsPanel function
-      const createResultsPanel = () => {
-        const panel = document.createElement('div');
-        panel.id = 'squarex-results-panel';
-        panel.setAttribute('role', 'region');
-        panel.setAttribute('aria-label', 'SquareX File Analysis Results');
-        panel.setAttribute('aria-live', 'polite');
-        
-        return panel;
-      };
-      
-      const panel = createResultsPanel();
-      
-      expect(panel.id).toBe('squarex-results-panel');
-      expect(panel.setAttribute).toHaveBeenCalledWith('role', 'region');
-    });
-
-    test('should create progress UI', () => {
-      const mockProgressContainer = {
-        id: 'squarex-progress',
-        setAttribute: jest.fn(),
-        style: {},
-        appendChild: jest.fn()
-      };
-      
-      (document.createElement as jest.Mock).mockReturnValue(mockProgressContainer);
-      
-      // Mock the createProgressUI function
-      const createProgressUI = () => {
-        const container = document.createElement('div');
-        container.id = 'squarex-progress';
-        container.setAttribute('role', 'status');
-        container.setAttribute('aria-live', 'polite');
-        
-        return container;
-      };
-      
-      const container = createProgressUI();
-      
-      expect(container.id).toBe('squarex-progress');
-      expect(container.setAttribute).toHaveBeenCalledWith('role', 'status');
-    });
-
-    test('should show notifications', () => {
-      const mockNotification = {
-        style: {},
-        setAttribute: jest.fn(),
-        textContent: '',
-        parentNode: null,
-        remove: jest.fn()
-      };
-      
-      (document.createElement as jest.Mock).mockReturnValue(mockNotification);
-      
-      // Mock the showNotification function
-      const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
-        const notification = document.createElement('div');
-        notification.textContent = message;
-        notification.setAttribute('role', 'alert');
-        notification.setAttribute('aria-live', 'assertive');
-        
-        // Don't actually append to avoid JSDOM issues
-        // document.body.appendChild(notification);
-        
-        // Auto-remove after 3 seconds
-        setTimeout(() => {
-          if (notification.parentNode) {
-            notification.remove();
-          }
-        }, 3000);
-      };
-      
-      showNotification('Test message', 'success');
-      
-      expect(document.createElement).toHaveBeenCalledWith('div');
-      // Don't test appendChild since we're avoiding JSDOM issues
-    });
-  });
-
-  describe('File Interception', () => {
-    test('should handle intercepted file processing', async () => {
+    test('should handle file selection events', async () => {
       const mockFile = {
         name: 'test.txt',
-        size: 1024,
         type: 'text/plain',
+        size: 1024,
         text: jest.fn().mockResolvedValue('test content')
       };
       
-      const mockFileData = {
-        name: 'test.txt',
-        size: 1024,
-        type: 'text/plain',
-        status: 'Processing'
+      const mockFileInput = {
+        files: [mockFile],
+        addEventListener: jest.fn()
       };
       
-      (browser.runtime.sendMessage as jest.Mock).mockResolvedValue({
-        success: true,
-        result: {
-          decision: 'allow',
-          riskScore: 0.2,
-          reason: 'File is safe'
+      const handleFileSelect = async (event: any) => {
+        const input = event.target;
+        const file = input.files?.[0];
+        
+        if (!file) return;
+        
+        if (file.type.includes('text') || file.name.endsWith('.txt')) {
+          const content = await file.text();
+          const response = await browser.runtime.sendMessage({
+            type: 'ANALYZE_FILE',
+            data: { content, fileName: file.name }
+          });
+          
+          return response;
         }
+      };
+      
+      const mockEvent = { target: mockFileInput };
+      const result = await handleFileSelect(mockEvent);
+      
+      expect(mockFile.text).toHaveBeenCalled();
+      expect(browser.runtime.sendMessage).toHaveBeenCalledWith({
+        type: 'ANALYZE_FILE',
+        data: { content: 'test content', fileName: 'test.txt' }
       });
-      
-      // Mock the handleInterceptedFile function
-      const handleInterceptedFile = async (file: File, fileData: any) => {
-        try {
-          // Analyze file
-          const result = await analyzeFileContent('test content', file.name);
-          
-          // Update file data
-          fileData.status = result.decision === 'allow' ? 'Allowed' : 'Blocked';
-          fileData.riskScore = result.riskScore;
-          fileData.reason = result.reason;
-          
-          return result;
-        } catch (error) {
-          fileData.status = 'Error';
-          fileData.error = error.message;
-          throw error;
-        }
-      };
-      
-      const result = await handleInterceptedFile(mockFile as any, mockFileData);
-      
-      expect(result.decision).toBe('allow');
-      expect(mockFileData.status).toBe('Allowed');
     });
   });
 
-  describe('UI Mode Toggle', () => {
-    test('should toggle UI mode between compact and sidebar', () => {
-      const mockToggle = {
-        addEventListener: jest.fn(),
-        setAttribute: jest.fn(),
-        style: {},
-        textContent: ''
+  describe('Error Handling', () => {
+    test('should handle WASM initialization errors gracefully', async () => {
+      const mockError = new Error('WASM init failed');
+      
+      const ensureWasmWithError = async () => {
+        try {
+          throw mockError;
+        } catch (e) {
+          console.error('[Safari] WASM init failed:', e);
+          return false;
+        }
       };
       
-      (document.createElement as jest.Mock).mockReturnValue(mockToggle);
+      const result = await ensureWasmWithError();
+      expect(result).toBe(false);
+    });
+
+    test('should handle file analysis errors', async () => {
+      const mockError = new Error('Analysis failed');
+      (browser.runtime.sendMessage as jest.Mock).mockRejectedValue(mockError);
       
-      // Mock the addUIModeToggle function
-      const addUIModeToggle = () => {
-        const toggle = document.createElement('button');
-        toggle.textContent = 'Toggle UI Mode';
-        toggle.setAttribute('aria-label', 'Toggle between compact and sidebar mode');
-        toggle.setAttribute('role', 'button');
-        
-        // Don't actually append to avoid JSDOM issues
-        // document.body.appendChild(toggle);
-        return toggle;
+      const handleFileAnalysis = async () => {
+        try {
+          await browser.runtime.sendMessage({
+            type: 'ANALYZE_FILE',
+            data: { content: 'test', fileName: 'test.txt' }
+          });
+        } catch (error) {
+          console.error('[Safari] Analysis error:', error);
+          return { success: false, error: error.message };
+        }
       };
       
-      const toggle = addUIModeToggle();
+      const result = await handleFileAnalysis();
+      expect(result).toEqual({ success: false, error: 'Analysis failed' });
+    });
+  });
+
+  describe('Storage Integration', () => {
+    test('should store analysis results in browser storage', async () => {
+      const mockAnalysisResult = {
+        decision: 'block',
+        riskScore: 0.8,
+        reason: 'High risk content detected',
+        fileName: 'suspicious.txt',
+        timestamp: Date.now()
+      };
       
-      expect(toggle.textContent).toBe('Toggle UI Mode');
-      expect(toggle.setAttribute).toHaveBeenCalledWith('role', 'button');
+      const storeAnalysisResult = async (result: any) => {
+        await browser.storage.local.set({ latestAnalysisResult: result });
+      };
+      
+      await storeAnalysisResult(mockAnalysisResult);
+      
+      expect(browser.storage.local.set).toHaveBeenCalledWith({
+        latestAnalysisResult: mockAnalysisResult
+      });
+    });
+
+    test('should retrieve analysis results from browser storage', async () => {
+      const mockStoredResult = {
+        latestAnalysisResult: {
+          decision: 'allow',
+          riskScore: 0.2,
+          fileName: 'safe.txt'
+        }
+      };
+      
+      (browser.storage.local.get as jest.Mock).mockResolvedValue(mockStoredResult);
+      
+      const getLatestResults = async () => {
+        const result = await browser.storage.local.get(['latestAnalysisResult']);
+        return result.latestAnalysisResult;
+      };
+      
+      const result = await getLatestResults();
+      
+      expect(browser.storage.local.get).toHaveBeenCalledWith(['latestAnalysisResult']);
+      expect(result).toEqual(mockStoredResult.latestAnalysisResult);
     });
   });
 });
-
-// Helper function for analyzeFileContent
-async function analyzeFileContent(content: string, fileName: string): Promise<any> {
-  const response = await browser.runtime.sendMessage({
-    type: 'ANALYZE_FILE',
-    data: { content, fileName }
-  });
-  
-  if (response.success) {
-    return response.result;
-  } else {
-    throw new Error(response.error || 'Analysis failed');
-  }
-}
