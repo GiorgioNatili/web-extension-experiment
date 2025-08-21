@@ -31,8 +31,28 @@ async function initializeWASM() {
 // Initialize on startup
 initializeWASM();
 
+// NEW: Send ready signal immediately
+console.log('[Safari] Sending immediate ready signal');
+try {
+  browser.tabs.query({}).then((tabs: any[]) => {
+    tabs.forEach((tab: any) => {
+      if (tab.id) {
+        browser.tabs.sendMessage(tab.id, { 
+          type: 'EXTENSION_READY',
+          source: 'squarex-extension',
+          ready: true 
+        }).catch(() => {
+          // Ignore errors for tabs that don't have content scripts
+        });
+      }
+    });
+  });
+} catch (error) {
+  console.error('[Safari] Error sending immediate ready signal:', error);
+}
+
 // Handle messages from content script
-browser.runtime.onMessage.addListener((message: any, sender, sendResponse) => {
+browser.runtime.onMessage.addListener((message: any, sender: any, sendResponse: any) => {
   console.log('Received message:', message);
   
   switch (message.type) {
@@ -56,7 +76,8 @@ browser.runtime.onMessage.addListener((message: any, sender, sendResponse) => {
       sendResponse({ 
         status: 'ready',
         wasm_loaded: safariWASMLoader.isModuleLoaded(),
-        error_stats: safariErrorHandler.getErrorStats()
+        error_stats: safariErrorHandler.getErrorStats(),
+        module_status: safariWASMLoader.getModuleStatus()
       });
       break;
       
@@ -66,6 +87,10 @@ browser.runtime.onMessage.addListener((message: any, sender, sendResponse) => {
         error_stats: safariErrorHandler.getErrorStats()
       });
       break;
+      
+    case 'TEST_WASM_LOADING':
+      handleWasmTest(message, sendResponse);
+      return true;
       
     default:
       console.warn('Unknown message type:', message.type);
@@ -104,30 +129,40 @@ async function handleFileAnalysis(message: any, sendResponse: any) {
       success: true,
       result: {
         ...result,
-        stats: {
-          totalChunks,
-          totalContent: content.length,
-          processingTime: Date.now() - message.timestamp || 0
-        }
+        fileName,
+        timestamp: Date.now()
       }
     });
-    
   } catch (error) {
     console.error('File analysis failed:', error);
-    const recovery = await safariErrorHandler.handleError(error as Error, { 
-      operation: 'file_analysis',
-      fileName: message.data?.fileName 
-    });
-    
     sendResponse({
       success: false,
-      error: error.message,
-      fallback: recovery.recovered
+      error: (error as Error).message
     });
   }
 }
 
-// Handle streaming initialization
+// Handle WASM test request
+async function handleWasmTest(message: any, sendResponse: any) {
+  try {
+    const isLoaded = safariWASMLoader.isModuleLoaded();
+    const moduleStatus = safariWASMLoader.getModuleStatus();
+    
+    sendResponse({
+      success: true,
+      wasm_loaded: isLoaded,
+      module_status: moduleStatus
+    });
+  } catch (error) {
+    console.error('WASM test failed:', error);
+    sendResponse({
+      success: false,
+      error: (error as Error).message
+    });
+  }
+}
+
+// Handle stream initialization
 async function handleStreamInit(message: any, sendResponse: any) {
   try {
     const { operation_id, file_info } = message;
@@ -136,35 +171,35 @@ async function handleStreamInit(message: any, sendResponse: any) {
       throw new Error('WASM module not loaded');
     }
     
-    // Create streaming operation
-    const analyzer = safariWASMLoader.createStreamingAnalyzer();
+    // Initialize streaming operation
     const operation = {
       id: operation_id,
-      analyzer,
-      fileInfo: file_info,
-      startTime: Date.now(),
-      chunks: [],
-      status: 'initialized'
+      file_info,
+      content: '',
+      stats: {
+        total_chunks: 0,
+        total_content_length: 0,
+        start_time: Date.now()
+      },
+      lastActivity: Date.now()
     };
     
+    // Store operation
     streamingOperations.set(operation_id, operation);
     
-    sendResponse({
-      success: true,
-      operation_id,
-      message: 'Streaming operation initialized'
-    });
+    console.log('Streaming operation initialized:', operation_id);
     
+    sendResponse({ success: true, operation_id });
   } catch (error) {
-    console.error('Streaming initialization failed:', error);
+    console.error('Stream initialization failed:', error);
     sendResponse({
       success: false,
-      error: error.message
+      error: (error as Error).message
     });
   }
 }
 
-// Handle streaming chunk processing
+// Handle stream chunk processing
 async function handleStreamChunk(message: any, sendResponse: any) {
   try {
     const { operation_id, chunk, chunk_index } = message;
@@ -175,69 +210,66 @@ async function handleStreamChunk(message: any, sendResponse: any) {
     }
     
     // Process chunk
-    operation.analyzer.processChunk(chunk);
-    operation.chunks.push(chunk_index);
+    operation.content += chunk;
+    operation.stats.total_chunks++;
+    operation.stats.total_content_length = operation.content.length;
+    operation.lastActivity = Date.now();
     
-    // Check for timeout
-    const elapsed = Date.now() - operation.startTime;
-    if (elapsed > TIMEOUT_MS) {
-      throw new Error('Streaming operation timeout');
-    }
+    console.log(`Processed chunk ${chunk_index} for operation ${operation_id}`);
     
     sendResponse({
       success: true,
-      operation_id,
       chunk_index,
-      message: 'Chunk processed successfully'
+      total_chunks: operation.stats.total_chunks
     });
-    
   } catch (error) {
     console.error('Chunk processing failed:', error);
     sendResponse({
       success: false,
-      error: error.message
+      error: (error as Error).message
     });
   }
 }
 
-// Handle streaming finalization
+// Handle stream finalization
 async function handleStreamFinalize(message: any, sendResponse: any) {
   try {
     const { operation_id } = message;
+    
+    if (!safariWASMLoader.isModuleLoaded()) {
+      throw new Error('WASM module not loaded');
+    }
     
     const operation = streamingOperations.get(operation_id);
     if (!operation) {
       throw new Error('Streaming operation not found');
     }
     
-    // Finalize analysis
-    const result = operation.analyzer.finalize();
+    // Create analyzer and process final content
+    const analyzer = safariWASMLoader.createStreamingAnalyzer();
+    analyzer.processChunk(operation.content);
     
-    // Calculate performance metrics
-    const processingTime = Date.now() - operation.startTime;
-    const totalContent = operation.chunks.length * CHUNK_SIZE;
+    // Finalize analysis
+    const result = analyzer.finalize();
     
     // Clean up operation
     streamingOperations.delete(operation_id);
     
+    console.log('Streaming analysis completed:', operation_id);
+    
     sendResponse({
       success: true,
-      operation_id,
       result: {
         ...result,
-        stats: {
-          totalChunks: operation.chunks.length,
-          totalContent,
-          processingTime
-        }
+        fileName: operation.file_info.name,
+        timestamp: Date.now()
       }
     });
-    
   } catch (error) {
-    console.error('Streaming finalization failed:', error);
+    console.error('Stream finalization failed:', error);
     sendResponse({
       success: false,
-      error: error.message
+      error: (error as Error).message
     });
   }
 }
@@ -245,43 +277,39 @@ async function handleStreamFinalize(message: any, sendResponse: any) {
 // Utility function to chunk content
 function chunkContent(content: string, chunkSize: number): string[] {
   const chunks: string[] = [];
-  for (let i = 0; i < content.length; i += chunkSize) {
-    chunks.push(content.slice(i, i + chunkSize));
+  let offset = 0;
+  
+  while (offset < content.length) {
+    const chunk = content.slice(offset, offset + chunkSize);
+    chunks.push(chunk);
+    offset += chunkSize;
   }
+  
   return chunks;
 }
 
+// Clean up old streaming operations periodically
+setInterval(() => {
+  const now = Date.now();
+  for (const [operationId, operation] of streamingOperations.entries()) {
+    if (now - operation.lastActivity > TIMEOUT_MS) {
+      console.log('Cleaning up expired streaming operation:', operationId);
+      streamingOperations.delete(operationId);
+    }
+  }
+}, 60000); // Check every minute
+
 // Handle extension lifecycle events
-browser.runtime.onInstalled.addListener((details) => {
-  console.log('Safari extension installed:', details);
-  
-  // Initialize default settings
-  browser.storage.local.set({
-    scannerEnabled: true,
-    entropyThreshold: '4.8',
-    riskThreshold: '0.6',
-    bannedPhrases: 'malware,virus,trojan',
-    stopwords: 'the,a,an,and,or,but,in,on,at,to,for,of,with,by'
-  });
+browser.runtime.onInstalled.addListener((details: any) => {
+  console.log('Extension installed:', details);
 });
 
 browser.runtime.onStartup.addListener(() => {
-  console.log('Safari extension started');
+  console.log('Extension started');
   initializeWASM();
 });
 
 browser.runtime.onUpdateAvailable.addListener(() => {
-  console.log('Safari extension update available');
+  console.log('Update available, reloading extension');
   browser.runtime.reload();
 });
-
-// Cleanup streaming operations periodically
-setInterval(() => {
-  const now = Date.now();
-  for (const [operationId, operation] of streamingOperations.entries()) {
-    if (now - operation.startTime > TIMEOUT_MS) {
-      console.log('Cleaning up stale streaming operation:', operationId);
-      streamingOperations.delete(operationId);
-    }
-  }
-}, 5 * 60 * 1000); // Every 5 minutes

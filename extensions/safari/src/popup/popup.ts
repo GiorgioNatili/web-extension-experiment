@@ -2,16 +2,20 @@
 import { CONFIG, MESSAGES } from 'shared';
 
 let toggleButton: HTMLButtonElement | null = null;
+let testWasmButton: HTMLButtonElement | null = null;
 let statusElement: HTMLElement | null = null;
 let wasmStatusElement: HTMLElement | null = null;
 let errorStatsElement: HTMLElement | null = null;
+let latestResultsElement: HTMLElement | null = null;
 
 async function initializePopup() {
   // Get DOM elements
   toggleButton = document.getElementById('toggleButton') as HTMLButtonElement;
+  testWasmButton = document.getElementById('testWasmButton') as HTMLButtonElement;
   statusElement = document.getElementById('status');
   wasmStatusElement = document.getElementById('wasmStatus');
   errorStatsElement = document.getElementById('errorStats');
+  latestResultsElement = document.getElementById('latestResults');
 
   // Load current settings
   const result = await browser.storage.local.get(['scannerEnabled', 'entropyThreshold']);
@@ -22,6 +26,11 @@ async function initializePopup() {
     toggleButton.textContent = scannerEnabled ? 'Disable Scanner' : 'Enable Scanner';
     toggleButton.className = scannerEnabled ? 'toggle-button' : 'toggle-button disabled';
     toggleButton.addEventListener('click', toggleScanner);
+  }
+
+  // Set up WASM test button
+  if (testWasmButton) {
+    testWasmButton.addEventListener('click', triggerWasmTest);
   }
 
   // Set up footer links
@@ -42,8 +51,9 @@ async function initializePopup() {
     });
   }
 
-  // Update status
+  // Update status and latest results
   await updateStatus();
+  await updateLatestResults();
 }
 
 async function toggleScanner() {
@@ -82,6 +92,29 @@ async function toggleScanner() {
   }
 }
 
+// Trigger background WASM loading test
+async function triggerWasmTest() {
+  try {
+    if (testWasmButton) {
+      testWasmButton.disabled = true;
+      testWasmButton.textContent = 'Testing...';
+    }
+    const response = await browser.runtime.sendMessage({ type: 'TEST_WASM_LOADING' });
+    console.log('WASM test response:', response);
+    await updateStatus();
+    await updateLatestResults();
+    if (testWasmButton) {
+      testWasmButton.textContent = 'Test WASM';
+    }
+  } catch (error) {
+    console.error('Failed to run WASM test:', error);
+  } finally {
+    if (testWasmButton) {
+      testWasmButton.disabled = false;
+    }
+  }
+}
+
 async function updateStatus() {
   try {
     // Get extension status
@@ -91,7 +124,10 @@ async function updateStatus() {
       if (response.status === 'ready') {
         statusElement.textContent = 'Ready';
         statusElement.className = 'status ready';
-      } else {
+      } else if (response.status === 'busy') {
+        statusElement.textContent = 'Processing';
+        statusElement.className = 'status busy';
+      } else if (response.status === 'error') {
         statusElement.textContent = 'Error';
         statusElement.className = 'status error';
       }
@@ -99,81 +135,89 @@ async function updateStatus() {
 
     if (wasmStatusElement) {
       if (response.wasm_loaded) {
-        wasmStatusElement.textContent = 'Loaded';
+        wasmStatusElement.textContent = 'WASM Loaded';
         wasmStatusElement.className = 'status ready';
       } else {
-        wasmStatusElement.textContent = 'Not loaded';
+        wasmStatusElement.textContent = 'WASM Not Loaded';
         wasmStatusElement.className = 'status error';
       }
     }
 
-    if (errorStatsElement && response.error_stats) {
-      const stats = response.error_stats;
-      const totalErrors = stats.total || 0;
-      const recoveredErrors = stats.recovered || 0;
-      const recoveryRate = stats.recoveryRate || '0%';
-
-      if (totalErrors === 0) {
+    if (errorStatsElement) {
+      const stats = response.error_stats || { total: 0 };
+      if (stats.total > 0) {
+        errorStatsElement.textContent = `${stats.total} errors`;
+        errorStatsElement.className = 'status error';
+      } else {
         errorStatsElement.textContent = 'No errors';
         errorStatsElement.className = 'status ready';
-      } else {
-        errorStatsElement.innerHTML = `
-          <div>Total: ${totalErrors} | Recovered: ${recoveredErrors}</div>
-          <div class="error-stats">Recovery Rate: <strong>${recoveryRate}</strong></div>
-        `;
-        errorStatsElement.className = 'status warning';
       }
-    }
-
-    // Add performance metrics if available
-    if (response.performance && statusElement) {
-      const perf = response.performance;
-      const perfHtml = `
-        <div class="performance-metrics">
-          <strong>Memory:</strong> ${(perf.memoryUsed / 1024 / 1024).toFixed(1)}MB | 
-          <strong>Throughput:</strong> ${perf.throughput.toFixed(0)} KB/s | 
-          <strong>CPU:</strong> ${perf.cpuUsage.toFixed(1)}%
-        </div>
-      `;
-      statusElement.innerHTML += perfHtml;
-    }
-
-    // Add timestamp
-    if (statusElement) {
-      const timestamp = new Date().toLocaleTimeString();
-      const timeHtml = `<div style="font-size: 10px; margin-top: 5px; opacity: 0.7;">Last updated: ${timestamp}</div>`;
-      statusElement.innerHTML += timeHtml;
     }
 
   } catch (error) {
     console.error('Failed to update status:', error);
-    
     if (statusElement) {
-      statusElement.textContent = 'Connection error';
+      statusElement.textContent = 'Error';
       statusElement.className = 'status error';
     }
   }
 }
 
-function showNotification(message: string, type: 'success' | 'error' | 'info' = 'info'): void {
+async function updateLatestResults() {
+  try {
+    const result = await browser.storage.local.get(['latestAnalysisResult']);
+    if (latestResultsElement && result.latestAnalysisResult) {
+      const analysis = result.latestAnalysisResult;
+      const riskScore = (analysis.riskScore || analysis.risk_score || 0) * 100;
+      const decision = analysis.decision || 'allow';
+      const fileName = analysis.fileName || 'Unknown file';
+      const reason = analysis.reason || 'Analysis complete';
+      latestResultsElement.innerHTML = `
+        <h4>Latest Analysis</h4>
+        <p><strong>File:</strong> ${fileName}</p>
+        <p><strong>Decision:</strong> ${decision === 'allow' ? 'Allowed' : 'Blocked'}</p>
+        <p><strong>Risk Score:</strong> ${riskScore.toFixed(0)}%</p>
+        <p><strong>Reason:</strong> ${reason}</p>
+        <p><strong>Time:</strong> ${new Date(analysis.timestamp || Date.now()).toLocaleTimeString()}</p>
+      `;
+      latestResultsElement.className = 'status success';
+    } else if (latestResultsElement) {
+      latestResultsElement.innerHTML = 'No analysis results available';
+      latestResultsElement.className = 'status info';
+    }
+  } catch (error) {
+    console.error('Failed to update latest results:', error);
+    if (latestResultsElement) {
+      latestResultsElement.innerHTML = 'Error loading results';
+      latestResultsElement.className = 'status error';
+    }
+  }
+}
+
+function showNotification(message: string, type: 'success' | 'error' | 'info' = 'info') {
   // Create notification element
   const notification = document.createElement('div');
+  notification.textContent = message;
+  notification.className = `notification ${type}`;
   notification.style.cssText = `
     position: fixed;
-    top: 10px;
-    right: 10px;
-    padding: 8px 12px;
-    border-radius: 4px;
-    color: white;
-    font-size: 12px;
-    z-index: 1000;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
     background: ${type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : '#007bff'};
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 6px;
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    z-index: 10002;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    max-width: 400px;
+    text-align: center;
   `;
-  notification.textContent = message;
-
+  
   document.body.appendChild(notification);
-
+  
   // Auto-remove after 3 seconds
   setTimeout(() => {
     if (notification.parentNode) {
@@ -182,8 +226,5 @@ function showNotification(message: string, type: 'success' | 'error' | 'info' = 
   }, 3000);
 }
 
-// Initialize popup when DOM is ready
+// Initialize popup when DOM is loaded
 document.addEventListener('DOMContentLoaded', initializePopup);
-
-// Update status every 5 seconds
-setInterval(updateStatus, 5000);
