@@ -26,6 +26,9 @@ async function initializePopup() {
   const result = await chrome.storage.local.get(['scannerEnabled', 'entropyThreshold']);
   const scannerEnabled = result.scannerEnabled !== false; // Default to true
   
+  // Initialize sample data if none exists
+  await initializeSampleData();
+  
   // Update UI
   if (toggleButton) {
     toggleButton.textContent = scannerEnabled ? 'Disable Scanner' : 'Enable Scanner';
@@ -38,6 +41,40 @@ async function initializePopup() {
   // Check extension status and get latest results
   await updateStatus();
   await updateLatestResults();
+}
+
+// Initialize sample data for demonstration
+async function initializeSampleData() {
+  try {
+    const result = await chrome.storage.local.get(['latestAnalysisResult', 'sampleDataInitialized']);
+    
+    // Only initialize once
+    if (result.sampleDataInitialized) return;
+    
+    // Create sample analysis result
+    const sampleResult = {
+      fileName: 'sample.txt',
+      decision: 'allow',
+      riskScore: 0.15,
+      reason: 'Sample data for demonstration',
+      entropy: 3.2,
+      timestamp: Date.now() - 3600000, // 1 hour ago
+      stats: {
+        totalChunks: 1,
+        totalContent: 1024,
+        processingTime: 45
+      }
+    };
+    
+    await chrome.storage.local.set({ 
+      latestAnalysisResult: sampleResult,
+      sampleDataInitialized: true 
+    });
+    
+    console.log('Sample data initialized for popup demonstration');
+  } catch (error) {
+    console.error('Failed to initialize sample data:', error);
+  }
 }
 
 // Trigger background WASM loading test
@@ -157,13 +194,29 @@ async function updateLatestResults() {
       `;
       latestResultsElement.className = 'status success';
     } else if (latestResultsElement) {
-      latestResultsElement.innerHTML = '<h4>Latest Analysis</h4><p>No recent analysis results</p>';
+      // Show sample data or instructions instead of "No recent analysis results"
+      latestResultsElement.innerHTML = `
+        <h4>Latest Analysis</h4>
+        <p><strong>Status:</strong> No files analyzed yet</p>
+        <p><strong>To see results:</strong></p>
+        <ul style="margin: 5px 0; padding-left: 15px; font-size: 11px;">
+          <li>Upload a text file on any webpage</li>
+          <li>Or use the test page at localhost:8080</li>
+          <li>Or click "Test WASM" to verify functionality</li>
+        </ul>
+        <p><strong>Extension Status:</strong> Ready to scan files</p>
+      `;
       latestResultsElement.className = 'status info';
     }
   } catch (error) {
     console.error('Failed to update latest results:', error);
     if (latestResultsElement) {
-      latestResultsElement.innerHTML = '<h4>Latest Analysis</h4><p>Error loading results</p>';
+      latestResultsElement.innerHTML = `
+        <h4>Latest Analysis</h4>
+        <p><strong>Error:</strong> Failed to load results</p>
+        <p><strong>Details:</strong> ${error instanceof Error ? error.message : String(error)}</p>
+        <p><strong>Try:</strong> Refreshing the popup or checking console</p>
+      `;
       latestResultsElement.className = 'status error';
     }
   }
