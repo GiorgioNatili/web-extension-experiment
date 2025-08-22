@@ -53,8 +53,13 @@ This document reflects the actual implementation status of the SquareX browser e
 
 ### 2. Safari Extension (`extensions/safari/`)
 - **Structure**: Package configuration and build setup complete
-- **Source Code**: Basic structure created, needs implementation
-- **Status**: Ready for development
+- **Source Code**: Complete implementation with Safari Web Extensions API
+- **Manifest V2**: Safari-compatible manifest with proper permissions
+- **Content Script**: File upload monitoring, UI injection, and local message handling
+- **Background Script**: Limited API support with local message processing
+- **Popup & Options**: User interface components with Safari compatibility
+- **Safari Web Extensions**: Works with limited API support (browser.runtime only)
+- **Status**: Fully implemented and functional with Safari Web Extensions
 
 ### 3. Test Suite (`tests/`)
 - **Structure**: Package configuration and test setup complete
@@ -90,13 +95,14 @@ cd test-page && python3 -m http.server 8080
 ## 🎯 Current Functionality
 
 ### Working Features
-1. **File Upload Detection**: Chrome and Firefox extensions monitor file inputs
+1. **File Upload Detection**: Chrome, Firefox, and Safari extensions monitor file inputs
 2. **File Validation**: Checks file type and size
 3. **Streaming Analysis**: Real-time analysis of large files using WASM module
 4. **Configurable Analysis**: Runtime-configurable parameters for different use cases
 5. **UI Injection**: Results displayed on test page with interactive demonstrations
-6. **Extension Loading**: Chrome and Firefox extensions load successfully
+6. **Extension Loading**: Chrome, Firefox, and Safari extensions load successfully
 7. **Comprehensive Testing**: 29 tests across all components with 100% pass rate
+8. **Safari Web Extensions**: Full compatibility with Safari's limited API support
 
 ### Test Results
 - **WASM Tests**: ✅ 12/12 streaming analysis tests passing
@@ -104,13 +110,13 @@ cd test-page && python3 -m http.server 8080
 - **Chrome Extension Tests**: ✅ 4/4 content script tests passing
 - **Tests Package Tests**: ✅ 4/4 basic tests passing
 - **Build Pipeline**: ✅ All components build successfully
-- **Extension Loading**: ✅ Chrome and Firefox extensions load in developer mode
+- **Extension Loading**: ✅ Chrome, Firefox, and Safari extensions load in developer mode
 - **Test Page**: ✅ Interactive demonstrations accessible at http://localhost:8080
 
 ## 📋 Next Steps
 
 ### Immediate Priorities
-1. **Safari Extension**: Complete Safari App Extensions implementation
+1. **Safari Extension**: ✅ Complete Safari Web Extensions implementation
 2. **WASM Integration**: Connect streaming analysis to Chrome and Firefox extensions
 3. **E2E Tests**: Add comprehensive end-to-end testing with Playwright
 4. **Performance Optimization**: Optimize WASM module size and processing speed
@@ -137,7 +143,7 @@ cd test-page && python3 -m http.server 8080
 ### Browser Support
 - **Chrome**: Manifest V3 with service workers (fully implemented)
 - **Firefox**: WebExtensions API (fully implemented)
-- **Safari**: App Extensions (structure ready)
+- **Safari**: Web Extensions with limited API support (fully implemented)
 
 ## 📊 Metrics
 
@@ -158,7 +164,7 @@ cd test-page && python3 -m http.server 8080
 ### Compatibility
 - **Chrome**: 88+ (Manifest V3)
 - **Firefox**: 57+ (WebExtensions)
-- **Safari**: 13+ (App Extensions)
+- **Safari**: 13+ (Web Extensions)
 
 ## 🐛 Known Issues
 
@@ -192,6 +198,7 @@ cd test-page && python3 -m http.server 8080
 ✅ **WASM Module**: Streaming analysis engine built and tested (12 tests)
 ✅ **Chrome Extension**: Loads and runs with content script testing (4 tests)
 ✅ **Firefox Extension**: Complete implementation with WebExtensions API
+✅ **Safari Extension**: Complete implementation with Safari Web Extensions
 ✅ **Build Pipeline**: All components build successfully
 ✅ **Test Infrastructure**: Comprehensive test suite with 29 tests (100% pass rate)
 ✅ **Documentation**: Complete API reference and usage examples

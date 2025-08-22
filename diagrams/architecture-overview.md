@@ -7,7 +7,7 @@ graph TB
     subgraph "Browser Extensions"
         Chrome[Chrome Extension<br/>Manifest V3]
         Firefox[Firefox Extension<br/>WebExtensions]
-        Safari[Safari Extension<br/>App Extensions]
+        Safari[Safari Extension<br/>Web Extensions]
     end
 
     subgraph "Core Components"

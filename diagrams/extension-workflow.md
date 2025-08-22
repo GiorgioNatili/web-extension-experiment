@@ -81,3 +81,9 @@ sequenceDiagram
 - Content script injects results into page
 - Display analysis summary to user
 - Show allow/block decision with reasoning
+
+### **7. Safari-Specific Workflow**
+- **Local Message Handling**: Safari content script handles messages locally
+- **Limited API Support**: Uses only `browser.runtime` API
+- **No Background Script**: WASM operations performed in content script
+- **Multiple Detection**: Aggressive ready signal broadcasting for test page detection
